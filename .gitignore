@@ -41,5 +41,9 @@ tests/run-examples.spec.ts-snapshots
 
 ## packaged tar obtained from the cmd: npm run predeploy or npm run deploy
 aladin-lite*.tgz
-# folder where the generated bundle lies 
+# folder where the generated bundle lies
 dist/
+
+## benchmark related
+# generated synthetic FITS files, some of them multi-gigabyte
+bench/data/

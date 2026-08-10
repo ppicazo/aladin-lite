@@ -1,0 +1,370 @@
+[
+  {
+    "url": "http://localhost:5200/synth-64mb.fits",
+    "count": 1,
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+    "crossOriginIsolated": false,
+    "startedAt": "2026-08-10T04:47:44.580Z",
+    "loadMs": 1313.8,
+    "perLayerMs": [
+      1313.8
+    ],
+    "duringLoad": {
+      "frames": 66,
+      "medianFrameMs": 16.7,
+      "p95FrameMs": 19.8,
+      "maxFrameMs": 138.9,
+      "framesOver50ms": 2,
+      "framesOver16ms": 31
+    },
+    "peakJsHeapBytes": 5535382,
+    "wasmHeapBytes": {
+      "before": 1441792,
+      "after": 70844416
+    },
+    "wasmHeapGrowthBytes": 69402624,
+    "jsHeapBytes": {
+      "before": 4494309,
+      "after": 72997164
+    },
+    "network": {
+      "requests": 1,
+      "transferSize": 67112940,
+      "encodedBodySize": 67112640
+    },
+    "interaction": {
+      "frames": 165,
+      "medianFrameMs": 16.4,
+      "p95FrameMs": 20.6,
+      "maxFrameMs": 325.5,
+      "framesOver50ms": 1,
+      "framesOver16ms": 70
+    },
+    "finishedAt": "2026-08-10T04:47:48.996Z",
+    "case": "64mb",
+    "wallMs": 4571
+  },
+  {
+    "url": "http://localhost:5200/synth-512mb.fits",
+    "count": 1,
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+    "crossOriginIsolated": false,
+    "startedAt": "2026-08-10T04:47:49.313Z",
+    "loadMs": 4607.7,
+    "perLayerMs": [
+      4607.6
+    ],
+    "duringLoad": {
+      "frames": 194,
+      "medianFrameMs": 16.6,
+      "p95FrameMs": 21.1,
+      "maxFrameMs": 319.3,
+      "framesOver50ms": 4,
+      "framesOver16ms": 82
+    },
+    "peakJsHeapBytes": 37682453,
+    "wasmHeapBytes": {
+      "before": 1441792,
+      "after": 764870656
+    },
+    "wasmHeapGrowthBytes": 763428864,
+    "jsHeapBytes": {
+      "before": 4493884,
+      "after": 542048309
+    },
+    "network": {
+      "requests": 1,
+      "transferSize": 536760300,
+      "encodedBodySize": 536760000
+    },
+    "interaction": {
+      "frames": 182,
+      "medianFrameMs": 16.6,
+      "p95FrameMs": 19.9,
+      "maxFrameMs": 23.5,
+      "framesOver50ms": 0,
+      "framesOver16ms": 84
+    },
+    "finishedAt": "2026-08-10T04:47:57.029Z",
+    "case": "512mb",
+    "wallMs": 7877
+  },
+  {
+    "url": "http://localhost:5200/synth-1gb.fits",
+    "count": 1,
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+    "crossOriginIsolated": false,
+    "startedAt": "2026-08-10T04:47:57.408Z",
+    "loadMs": 8131.5,
+    "error": "recursive use of an object detected which would lead to unsafe aliasing in rust",
+    "duringLoad": {
+      "frames": 399,
+      "medianFrameMs": 16.7,
+      "p95FrameMs": 19.8,
+      "maxFrameMs": 764,
+      "framesOver50ms": 4,
+      "framesOver16ms": 189
+    },
+    "peakJsHeapBytes": 1078722355,
+    "wasmHeapBytes": {
+      "before": 1441792,
+      "after": 1436221440
+    },
+    "wasmHeapGrowthBytes": 1434779648,
+    "jsHeapBytes": {
+      "before": 4493878,
+      "after": 1078796872
+    },
+    "network": {
+      "requests": 2,
+      "transferSize": 1073817217,
+      "encodedBodySize": 1073816617
+    },
+    "finishedAt": "2026-08-10T04:48:05.647Z",
+    "case": "1gb",
+    "wallMs": 8423,
+    "consoleErrors": [
+      "RuntimeError: unreachable\n    at aladin_lite.wasm.__rustc[6ef78fba13ac776c]::rust_panic (http://localhost:5199/src/core/pkg/core_bg.wasm:wasm-function[2605]:0xcbaf4)\n    at aladin_lite.wasm.std[9b61791517946214]::panicking::panic_with_hook (http://localhost:5199/src/core/pkg/core_bg.wasm:wasm-function[885]:0xaf635)\n    at aladin_lite.wasm.std[9b61791517946214]::panicking::panic_handler::{closure#0",
+      "pageerror: Error: recursive use of an object detected which would lead to unsafe aliasing in rust",
+      "Failed to load resource: the server responded with a status of 500 ()",
+      "Failed to load resource: the server responded with a status of 500 ()",
+      "Event",
+      "Image located at http://localhost:5200/synth-1gb.fits could not be parsed as jpg/png/tif image file. Reason:  Error parsing image located at: http://localhost:5200/synth-1gb.fits",
+      "pageerror: Error: recursive use of an object detected which would lead to unsafe aliasing in rust"
+    ]
+  },
+  {
+    "url": "http://localhost:5200/synth-2gb.fits",
+    "count": 1,
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+    "crossOriginIsolated": false,
+    "startedAt": "2026-08-10T04:48:05.985Z",
+    "loadMs": 10446.6,
+    "error": "Image HDU not found in the FITS",
+    "duringLoad": {
+      "frames": 603,
+      "medianFrameMs": 16.6,
+      "p95FrameMs": 19.8,
+      "maxFrameMs": 285,
+      "framesOver50ms": 3,
+      "framesOver16ms": 277
+    },
+    "peakJsHeapBytes": 38014091,
+    "wasmHeapBytes": {
+      "before": 1441792,
+      "after": 26542080
+    },
+    "wasmHeapGrowthBytes": 25100288,
+    "jsHeapBytes": {
+      "before": 4493878,
+      "after": 4895298
+    },
+    "network": {
+      "requests": 2,
+      "transferSize": 2147425857,
+      "encodedBodySize": 2147425257
+    },
+    "finishedAt": "2026-08-10T04:48:16.525Z",
+    "case": "2gb",
+    "wallMs": 10678,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 500 ()",
+      "Failed to load resource: the server responded with a status of 500 ()",
+      "Event",
+      "Image located at http://localhost:5200/synth-2gb.fits could not be parsed as jpg/png/tif image file. Reason:  Error parsing image located at: http://localhost:5200/synth-2gb.fits",
+      "pageerror: Image HDU not found in the FITS"
+    ]
+  },
+  {
+    "url": "http://localhost:5200/synth-4gb.fits",
+    "count": 1,
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+    "crossOriginIsolated": false,
+    "startedAt": "2026-08-10T04:48:16.881Z",
+    "loadMs": 21476.7,
+    "error": "Image HDU not found in the FITS",
+    "duringLoad": {
+      "frames": 1268,
+      "medianFrameMs": 16.6,
+      "p95FrameMs": 19.7,
+      "maxFrameMs": 288.1,
+      "framesOver50ms": 2,
+      "framesOver16ms": 589
+    },
+    "peakJsHeapBytes": 38722163,
+    "wasmHeapBytes": {
+      "before": 1441792,
+      "after": 26542080
+    },
+    "wasmHeapGrowthBytes": 25100288,
+    "jsHeapBytes": {
+      "before": 4494306,
+      "after": 38404017
+    },
+    "network": {
+      "requests": 2,
+      "transferSize": 4295042497,
+      "encodedBodySize": 4295041897
+    },
+    "finishedAt": "2026-08-10T04:48:38.474Z",
+    "case": "4gb",
+    "wallMs": 21749,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 500 ()",
+      "Failed to load resource: the server responded with a status of 500 ()",
+      "Event",
+      "Image located at http://localhost:5200/synth-4gb.fits could not be parsed as jpg/png/tif image file. Reason:  Error parsing image located at: http://localhost:5200/synth-4gb.fits",
+      "pageerror: Image HDU not found in the FITS"
+    ]
+  },
+  {
+    "url": "http://localhost:5200/synth-64mb.fits",
+    "count": 4,
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+    "crossOriginIsolated": false,
+    "startedAt": "2026-08-10T04:48:38.936Z",
+    "loadMs": 1357,
+    "perLayerMs": [
+      1178.3,
+      1354.9,
+      1235.4,
+      1293.5
+    ],
+    "duringLoad": {
+      "frames": 51,
+      "medianFrameMs": 16.3,
+      "p95FrameMs": 122.4,
+      "maxFrameMs": 170.3,
+      "framesOver50ms": 5,
+      "framesOver16ms": 22
+    },
+    "peakJsHeapBytes": 208114984,
+    "wasmHeapBytes": {
+      "before": 1441792,
+      "after": 70844416
+    },
+    "wasmHeapGrowthBytes": 69402624,
+    "jsHeapBytes": {
+      "before": 5042101,
+      "after": 274102563
+    },
+    "network": {
+      "requests": 4,
+      "transferSize": 268451760,
+      "encodedBodySize": 268450560
+    },
+    "interaction": {
+      "frames": 122,
+      "medianFrameMs": 17.7,
+      "p95FrameMs": 48.8,
+      "maxFrameMs": 431.2,
+      "framesOver50ms": 5,
+      "framesOver16ms": 74
+    },
+    "finishedAt": "2026-08-10T04:48:43.432Z",
+    "case": "64mb-x4",
+    "wallMs": 4666
+  },
+  {
+    "url": "http://localhost:5200/synth-64mb.fits",
+    "count": 10,
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+    "crossOriginIsolated": false,
+    "startedAt": "2026-08-10T04:48:44.170Z",
+    "loadMs": 2621.7,
+    "perLayerMs": [
+      1294.5,
+      1247,
+      1482.4,
+      1559.3,
+      1343.9,
+      1670.2,
+      2293.9,
+      2619.3,
+      2509.9,
+      2389.4
+    ],
+    "duringLoad": {
+      "frames": 82,
+      "medianFrameMs": 16.9,
+      "p95FrameMs": 117.2,
+      "maxFrameMs": 315,
+      "framesOver50ms": 10,
+      "framesOver16ms": 42
+    },
+    "peakJsHeapBytes": 274560369,
+    "wasmHeapBytes": {
+      "before": 1441792,
+      "after": 70844416
+    },
+    "wasmHeapGrowthBytes": 69402624,
+    "jsHeapBytes": {
+      "before": 4493884,
+      "after": 140689050
+    },
+    "network": {
+      "requests": 10,
+      "transferSize": 671129400,
+      "encodedBodySize": 671126400
+    },
+    "interaction": {
+      "frames": 84,
+      "medianFrameMs": 26.7,
+      "p95FrameMs": 93.8,
+      "maxFrameMs": 120.3,
+      "framesOver50ms": 23,
+      "framesOver16ms": 59
+    },
+    "finishedAt": "2026-08-10T04:48:49.922Z",
+    "case": "64mb-x10",
+    "wallMs": 5966
+  },
+  {
+    "url": "http://localhost:5200/synth-512mb.fits",
+    "count": 4,
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+    "crossOriginIsolated": false,
+    "startedAt": "2026-08-10T04:48:51.041Z",
+    "loadMs": 7187.2,
+    "perLayerMs": [
+      7187.1,
+      5253.2,
+      6297.4,
+      5781.8
+    ],
+    "duringLoad": {
+      "frames": 201,
+      "medianFrameMs": 16.7,
+      "p95FrameMs": 29,
+      "maxFrameMs": 703.2,
+      "framesOver50ms": 10,
+      "framesOver16ms": 100
+    },
+    "peakJsHeapBytes": 1079501023,
+    "wasmHeapBytes": {
+      "before": 1441792,
+      "after": 764870656
+    },
+    "wasmHeapGrowthBytes": 763428864,
+    "jsHeapBytes": {
+      "before": 4494312,
+      "after": 1616205888
+    },
+    "network": {
+      "requests": 4,
+      "transferSize": 2147041200,
+      "encodedBodySize": 2147040000
+    },
+    "interaction": {
+      "frames": 121,
+      "medianFrameMs": 18.8,
+      "p95FrameMs": 60.2,
+      "maxFrameMs": 66.6,
+      "framesOver50ms": 15,
+      "framesOver16ms": 83
+    },
+    "finishedAt": "2026-08-10T04:49:01.401Z",
+    "case": "512mb-x4",
+    "wallMs": 10550
+  }
+]

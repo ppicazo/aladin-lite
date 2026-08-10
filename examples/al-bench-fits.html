@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>FITS load benchmark</title>
+    <style>
+        body { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 12px; }
+        #aladin-lite-div { width: 512px; height: 512px; }
+        pre { background: #f4f4f4; padding: 10px; white-space: pre-wrap; }
+        #status { color: #666; }
+        .row { display: flex; gap: 16px; align-items: flex-start; }
+        .col { flex: 1; min-width: 0; }
+    </style>
+</head>
+<body>
+
+<p>
+    Query parameters:
+    <code>?file=http://localhost:5200/synth-64mb.fits&amp;count=1&amp;pan=3000</code>
+    <br>
+    Data is served by <code>node bench/serve.mjs</code> (port 5200), not by Vite, which
+    cannot serve multi-gigabyte files.
+</p>
+<p id="status">idle</p>
+
+<div class="row">
+    <div><div id="aladin-lite-div"></div></div>
+    <div class="col">
+        <pre id="summary"></pre>
+        <pre id="json"></pre>
+    </div>
+</div>
+
+<script type="module">
+    import {runBench, formatResult} from '../bench/bench.js';
+
+    const params = new URLSearchParams(location.search);
+    const file = params.get('file') || 'http://localhost:5200/synth-64mb.fits';
+    const count = parseInt(params.get('count') || '1', 10);
+    const panMs = parseInt(params.get('pan') || '3000', 10);
+
+    const status = document.getElementById('status');
+    const onLog = (m) => { status.textContent = m; };
+
+    runBench({url: file, count, panMs, onLog})
+        .then((result) => {
+            document.getElementById('summary').textContent = formatResult(result);
+            document.getElementById('json').textContent = JSON.stringify(result, null, 2);
+            status.textContent = 'done';
+            // Playwright and any external driver read the result from here.
+            window.__benchResult = result;
+            console.log(JSON.stringify(result));
+        })
+        .catch((e) => {
+            status.textContent = 'harness failure';
+            document.getElementById('summary').textContent = (e && e.stack) || String(e);
+            window.__benchResult = {fatal: String(e)};
+        });
+</script>
+</body>
+</html>

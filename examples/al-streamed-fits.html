@@ -74,6 +74,9 @@
         });
 
         aladin.setOverlayImageLayer(image, 'streamed');
+
+        // Exposed so that scripted zoom tests can drive the camera.
+        window.__aladin = aladin;
     });
 </script>
 </body>

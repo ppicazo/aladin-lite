@@ -1324,8 +1324,13 @@ impl App {
             let source = al_fits::open_url(&url).await?;
             let reader = ImageReader::open(source, hdu).await?;
 
-            let (image, level) =
+            let reader = std::rc::Rc::new(reader);
+            let (mut image, level) =
                 streamed::image_from_level(&gl, &reader, DEFAULT_TILE_BUDGET, coo_sys).await?;
+
+            // From here the camera drives it: zooming in reads finer tiles for
+            // whatever is on screen and draws them over this overview.
+            image.refine_from(reader.clone(), DEFAULT_TILE_BUDGET)?;
 
             let (width, height, _) = reader
                 .entry()
@@ -1635,6 +1640,21 @@ impl App {
 
         // Poll worker responses — always needed
         self.poll_worker_responses()?;
+
+        // Streamed images follow the camera: pick the level the zoom calls for,
+        // ask for the tiles the viewport covers, and take delivery of the ones
+        // that have arrived.
+        {
+            let camera = &self.camera;
+            let projection = &self.projection;
+            let mut refined = false;
+            for image in self.layers.get_mut_images() {
+                refined |= image.update_refinement(camera, projection)?;
+            }
+            if refined {
+                self.request_redraw = true;
+            }
+        }
 
         let rscs_received = self.downloader.borrow_mut().get_received_resources();
 

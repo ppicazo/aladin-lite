@@ -575,6 +575,11 @@ impl Layers {
         self.hipses.values_mut()
     }
 
+    /// Every image in every layer.
+    pub fn get_mut_images(&mut self) -> impl Iterator<Item = &mut Image> {
+        self.images.values_mut().flat_map(|i| i.stack.iter_mut())
+    }
+
     // FITS images getters
     pub fn get_mut_image_from_layer(&mut self, layer: &str) -> Option<&mut [Image]> {
         if let Some(url) = self.ids.get(layer) {

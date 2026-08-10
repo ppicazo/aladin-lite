@@ -1,0 +1,730 @@
+[
+  {
+    "url": "http://localhost:5200/synth-64mb.fits",
+    "count": 1,
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+    "crossOriginIsolated": false,
+    "startedAt": "2026-08-10T09:01:38.809Z",
+    "loadMs": 1291.4,
+    "perLayerMs": [
+      1291.3
+    ],
+    "duringLoad": {
+      "frames": 65,
+      "medianFrameMs": 16.7,
+      "p95FrameMs": 37.6,
+      "maxFrameMs": 77,
+      "framesOver50ms": 3,
+      "framesOver16ms": 30
+    },
+    "peakJsHeapBytes": 5675024,
+    "wasmHeapBytes": {
+      "before": 1441792,
+      "after": 70844416
+    },
+    "wasmHeapGrowthBytes": 69402624,
+    "jsHeapBytes": {
+      "before": 4686291,
+      "after": 73143778
+    },
+    "network": {
+      "requests": 1,
+      "transferSize": 67112940,
+      "encodedBodySize": 67112640
+    },
+    "interaction": {
+      "frames": 171,
+      "medianFrameMs": 16.7,
+      "p95FrameMs": 17.5,
+      "maxFrameMs": 237,
+      "framesOver50ms": 1,
+      "framesOver16ms": 80
+    },
+    "finishedAt": "2026-08-10T09:01:43.236Z",
+    "case": "64mb",
+    "wallMs": 5039
+  },
+  {
+    "url": "http://localhost:5200/synth-512mb.fits",
+    "count": 1,
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+    "crossOriginIsolated": false,
+    "startedAt": "2026-08-10T09:01:43.456Z",
+    "loadMs": 2301.3,
+    "perLayerMs": [
+      2301.2
+    ],
+    "duringLoad": {
+      "frames": 80,
+      "medianFrameMs": 16.7,
+      "p95FrameMs": 23.7,
+      "maxFrameMs": 244.3,
+      "framesOver50ms": 3,
+      "framesOver16ms": 37
+    },
+    "peakJsHeapBytes": 5555566,
+    "wasmHeapBytes": {
+      "before": 1441792,
+      "after": 740884480
+    },
+    "wasmHeapGrowthBytes": 739442688,
+    "jsHeapBytes": {
+      "before": 4559317,
+      "after": 541970573
+    },
+    "network": {
+      "requests": 1,
+      "transferSize": 536760300,
+      "encodedBodySize": 536760000
+    },
+    "interaction": {
+      "frames": 170,
+      "medianFrameMs": 16.7,
+      "p95FrameMs": 17.8,
+      "maxFrameMs": 218.1,
+      "framesOver50ms": 1,
+      "framesOver16ms": 76
+    },
+    "finishedAt": "2026-08-10T09:01:48.836Z",
+    "case": "512mb",
+    "wallMs": 5488
+  },
+  {
+    "url": "http://localhost:5200/synth-1gb.fits",
+    "count": 1,
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+    "crossOriginIsolated": false,
+    "startedAt": "2026-08-10T09:01:49.136Z",
+    "loadMs": 6359.4,
+    "error": "recursive use of an object detected which would lead to unsafe aliasing in rust",
+    "duringLoad": {
+      "frames": 269,
+      "medianFrameMs": 16.7,
+      "p95FrameMs": 17.5,
+      "maxFrameMs": 962.9,
+      "framesOver50ms": 5,
+      "framesOver16ms": 106
+    },
+    "peakJsHeapBytes": 1078866779,
+    "wasmHeapBytes": {
+      "before": 1441792,
+      "after": 1436221440
+    },
+    "wasmHeapGrowthBytes": 1434779648,
+    "jsHeapBytes": {
+      "before": 4559739,
+      "after": 1078917196
+    },
+    "network": {
+      "requests": 2,
+      "transferSize": 1073751681,
+      "encodedBodySize": 1073751081
+    },
+    "finishedAt": "2026-08-10T09:01:55.573Z",
+    "case": "1gb",
+    "wallMs": 6541,
+    "consoleErrors": [
+      "RuntimeError: unreachable\n    at aladin_lite.wasm.__rustc[6ef78fba13ac776c]::rust_panic (http://localhost:5199/src/core/pkg/core_bg.wasm:wasm-function[2839]:0xe188a)\n    at aladin_lite.wasm.std[9b61791517946214]::panicking::panic_with_hook (http://localhost:5199/src/core/pkg/core_bg.wasm:wasm-function[942]:0xc2337)\n    at aladin_lite.wasm.std[9b61791517946214]::panicking::panic_handler::{closure#0",
+      "pageerror: Error: recursive use of an object detected which would lead to unsafe aliasing in rust",
+      "pageerror: Error: recursive use of an object detected which would lead to unsafe aliasing in rust",
+      "Failed to load resource: the server responded with a status of 500 ()",
+      "Failed to load resource: the server responded with a status of 500 ()",
+      "Event",
+      "Image located at http://localhost:5200/synth-1gb.fits could not be parsed as jpg/png/tif image file. Reason:  Error parsing image located at: http://localhost:5200/synth-1gb.fits",
+      "pageerror: Error: recursive use of an object detected which would lead to unsafe aliasing in rust"
+    ]
+  },
+  {
+    "url": "http://localhost:5200/synth-2gb.fits",
+    "count": 1,
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+    "crossOriginIsolated": false,
+    "startedAt": "2026-08-10T09:01:56.487Z",
+    "loadMs": 4647.9,
+    "error": "Image HDU not found in the FITS",
+    "duringLoad": {
+      "frames": 265,
+      "medianFrameMs": 16.7,
+      "p95FrameMs": 17.5,
+      "maxFrameMs": 181.5,
+      "framesOver50ms": 3,
+      "framesOver16ms": 116
+    },
+    "peakJsHeapBytes": 37747943,
+    "wasmHeapBytes": {
+      "before": 1441792,
+      "after": 26542080
+    },
+    "wasmHeapGrowthBytes": 25100288,
+    "jsHeapBytes": {
+      "before": 4559311,
+      "after": 4853629
+    },
+    "network": {
+      "requests": 2,
+      "transferSize": 2147229249,
+      "encodedBodySize": 2147228649
+    },
+    "finishedAt": "2026-08-10T09:02:01.214Z",
+    "case": "2gb",
+    "wallMs": 4827,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 500 ()",
+      "Failed to load resource: the server responded with a status of 500 ()",
+      "Event",
+      "Image located at http://localhost:5200/synth-2gb.fits could not be parsed as jpg/png/tif image file. Reason:  Error parsing image located at: http://localhost:5200/synth-2gb.fits",
+      "pageerror: Image HDU not found in the FITS"
+    ]
+  },
+  {
+    "url": "http://localhost:5200/synth-4gb.fits",
+    "count": 1,
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+    "crossOriginIsolated": false,
+    "startedAt": "2026-08-10T09:02:01.488Z",
+    "loadMs": 8181.7,
+    "error": "Image HDU not found in the FITS",
+    "duringLoad": {
+      "frames": 470,
+      "medianFrameMs": 16.7,
+      "p95FrameMs": 17.2,
+      "maxFrameMs": 201.9,
+      "framesOver50ms": 4,
+      "framesOver16ms": 197
+    },
+    "peakJsHeapBytes": 37820808,
+    "wasmHeapBytes": {
+      "before": 1441792,
+      "after": 26542080
+    },
+    "wasmHeapGrowthBytes": 25100288,
+    "jsHeapBytes": {
+      "before": 4559311,
+      "after": 37901777
+    },
+    "network": {
+      "requests": 2,
+      "transferSize": 69697,
+      "encodedBodySize": 69097
+    },
+    "finishedAt": "2026-08-10T09:02:09.744Z",
+    "case": "4gb",
+    "wallMs": 8365,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 500 ()",
+      "Failed to load resource: the server responded with a status of 500 ()",
+      "Event",
+      "Image located at http://localhost:5200/synth-4gb.fits could not be parsed as jpg/png/tif image file. Reason:  Error parsing image located at: http://localhost:5200/synth-4gb.fits",
+      "pageerror: Image HDU not found in the FITS"
+    ]
+  },
+  {
+    "url": "http://localhost:5200/synth-64mb.fits",
+    "count": 4,
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+    "crossOriginIsolated": false,
+    "startedAt": "2026-08-10T09:02:10.088Z",
+    "loadMs": 1014.8,
+    "perLayerMs": [
+      970.3,
+      821.1,
+      771.4,
+      1013.1
+    ],
+    "duringLoad": {
+      "frames": 39,
+      "medianFrameMs": 16.6,
+      "p95FrameMs": 70.6,
+      "maxFrameMs": 128.2,
+      "framesOver50ms": 6,
+      "framesOver16ms": 14
+    },
+    "peakJsHeapBytes": 140449516,
+    "wasmHeapBytes": {
+      "before": 1441792,
+      "after": 138018816
+    },
+    "wasmHeapGrowthBytes": 136577024,
+    "jsHeapBytes": {
+      "before": 4559314,
+      "after": 140392482
+    },
+    "network": {
+      "requests": 4,
+      "transferSize": 268451760,
+      "encodedBodySize": 268450560
+    },
+    "interaction": {
+      "frames": 172,
+      "medianFrameMs": 16.7,
+      "p95FrameMs": 18.9,
+      "maxFrameMs": 199.5,
+      "framesOver50ms": 1,
+      "framesOver16ms": 84
+    },
+    "finishedAt": "2026-08-10T09:02:14.187Z",
+    "case": "64mb-x4",
+    "wallMs": 4205
+  },
+  {
+    "url": "http://localhost:5200/synth-64mb.fits",
+    "count": 10,
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+    "crossOriginIsolated": false,
+    "startedAt": "2026-08-10T09:02:14.431Z",
+    "loadMs": 1788.8,
+    "perLayerMs": [
+      881.4,
+      1036.3,
+      1081.7,
+      1132.6,
+      1244.8,
+      1304.9,
+      1500.9,
+      1640,
+      1700.2,
+      1786.2
+    ],
+    "duringLoad": {
+      "frames": 61,
+      "medianFrameMs": 16.6,
+      "p95FrameMs": 102.7,
+      "maxFrameMs": 120.9,
+      "framesOver50ms": 10,
+      "framesOver16ms": 27
+    },
+    "peakJsHeapBytes": 207740563,
+    "wasmHeapBytes": {
+      "before": 1441792,
+      "after": 70844416
+    },
+    "wasmHeapGrowthBytes": 69402624,
+    "jsHeapBytes": {
+      "before": 4559317,
+      "after": 208772912
+    },
+    "network": {
+      "requests": 10,
+      "transferSize": 671129400,
+      "encodedBodySize": 671126400
+    },
+    "interaction": {
+      "frames": 110,
+      "medianFrameMs": 19.4,
+      "p95FrameMs": 58.6,
+      "maxFrameMs": 207.3,
+      "framesOver50ms": 12,
+      "framesOver16ms": 77
+    },
+    "finishedAt": "2026-08-10T09:02:19.324Z",
+    "case": "64mb-x10",
+    "wallMs": 5019
+  },
+  {
+    "url": "http://localhost:5200/synth-512mb.fits",
+    "count": 4,
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+    "crossOriginIsolated": false,
+    "startedAt": "2026-08-10T09:02:20.131Z",
+    "loadMs": 4780.9,
+    "perLayerMs": [
+      4160.3,
+      2334.4,
+      3231.3,
+      4779.3
+    ],
+    "duringLoad": {
+      "frames": 104,
+      "medianFrameMs": 16.7,
+      "p95FrameMs": 215.8,
+      "maxFrameMs": 569.5,
+      "framesOver50ms": 10,
+      "framesOver16ms": 48
+    },
+    "peakJsHeapBytes": 1110770008,
+    "wasmHeapBytes": {
+      "before": 1441792,
+      "after": 740884480
+    },
+    "wasmHeapGrowthBytes": 739442688,
+    "jsHeapBytes": {
+      "before": 4559317,
+      "after": 1616272063
+    },
+    "network": {
+      "requests": 4,
+      "transferSize": 2147041200,
+      "encodedBodySize": 2147040000
+    },
+    "interaction": {
+      "frames": 182,
+      "medianFrameMs": 16.6,
+      "p95FrameMs": 18.6,
+      "maxFrameMs": 22.5,
+      "framesOver50ms": 0,
+      "framesOver16ms": 87
+    },
+    "finishedAt": "2026-08-10T09:02:28.002Z",
+    "case": "512mb-x4",
+    "wallMs": 7975
+  },
+  {
+    "url": "http://localhost:5200/synth-64mb.fits",
+    "startedAt": "2026-08-10T09:02:28.540Z",
+    "probe": {
+      "url": "http://localhost:5200/synth-64mb.fits",
+      "source": "http-range",
+      "size": 67112640,
+      "bytesRead": 23040,
+      "hdus": [
+        {
+          "index": 0,
+          "kind": "primary",
+          "bitpix": -32,
+          "axes": [
+            4096,
+            4096
+          ],
+          "dataOffset": 2880,
+          "dataLength": 67108864,
+          "position": {
+            "ra": 83.82200000000002,
+            "dec": -5.390999999999999,
+            "fov": 1.999308826236404
+          }
+        }
+      ]
+    },
+    "probeMs": 16.3,
+    "network": {
+      "requests": 1,
+      "transferSize": 65836,
+      "encodedBodySize": 65536
+    },
+    "finishedAt": "2026-08-10T09:02:28.556Z",
+    "case": "probe-64mb",
+    "wallMs": 129
+  },
+  {
+    "url": "http://localhost:5200/synth-512mb.fits",
+    "startedAt": "2026-08-10T09:02:28.731Z",
+    "probe": {
+      "url": "http://localhost:5200/synth-512mb.fits",
+      "source": "http-range",
+      "size": 536760000,
+      "bytesRead": 23040,
+      "hdus": [
+        {
+          "index": 0,
+          "kind": "primary",
+          "bitpix": -32,
+          "axes": [
+            11584,
+            11584
+          ],
+          "dataOffset": 2880,
+          "dataLength": 536756224,
+          "position": {
+            "ra": 83.82200000000002,
+            "dec": -5.390999999999999,
+            "fov": 1.9996243594481766
+          }
+        }
+      ]
+    },
+    "probeMs": 16.5,
+    "network": {
+      "requests": 1,
+      "transferSize": 65836,
+      "encodedBodySize": 65536
+    },
+    "finishedAt": "2026-08-10T09:02:28.748Z",
+    "case": "probe-512mb",
+    "wallMs": 117
+  },
+  {
+    "url": "http://localhost:5200/synth-4gb.fits",
+    "startedAt": "2026-08-10T09:02:28.930Z",
+    "probe": {
+      "url": "http://localhost:5200/synth-4gb.fits",
+      "source": "http-range",
+      "size": 4294972800,
+      "bytesRead": 23040,
+      "hdus": [
+        {
+          "index": 0,
+          "kind": "primary",
+          "bitpix": -32,
+          "axes": [
+            32768,
+            32768
+          ],
+          "dataOffset": 2880,
+          "dataLength": 4294967296,
+          "position": {
+            "ra": 83.82200000000002,
+            "dec": -5.390999999999999,
+            "fov": 1.9997359422588743
+          }
+        }
+      ]
+    },
+    "probeMs": 9.6,
+    "network": {
+      "requests": 1,
+      "transferSize": 65836,
+      "encodedBodySize": 65536
+    },
+    "finishedAt": "2026-08-10T09:02:28.940Z",
+    "case": "probe-4gb",
+    "wallMs": 129
+  },
+  {
+    "url": "http://localhost:5200/synth-512mb.fits",
+    "startedAt": "2026-08-10T09:02:29.122Z",
+    "read": {
+      "url": "http://localhost:5200/synth-512mb.fits",
+      "source": "http-range",
+      "size": 536760000,
+      "indexBytes": 23040,
+      "hdu": 0,
+      "width": 11584,
+      "height": 11584,
+      "levels": 6,
+      "tiles": [
+        {
+          "level": 0,
+          "x": 11,
+          "y": 11,
+          "cols": 512,
+          "rows": 512,
+          "stepX": 1,
+          "stepY": 1,
+          "bytesFetched": 23679744,
+          "bytesUsed": 1048576,
+          "requests": 1,
+          "rowThinning": 1,
+          "totalMs": 40
+        },
+        {
+          "level": 0,
+          "x": 12,
+          "y": 11,
+          "cols": 512,
+          "rows": 512,
+          "stepX": 1,
+          "stepY": 1,
+          "bytesFetched": 23679744,
+          "bytesUsed": 1048576,
+          "requests": 1,
+          "rowThinning": 1,
+          "totalMs": 31
+        },
+        {
+          "level": 0,
+          "x": 11,
+          "y": 12,
+          "cols": 512,
+          "rows": 512,
+          "stepX": 1,
+          "stepY": 1,
+          "bytesFetched": 23679744,
+          "bytesUsed": 1048576,
+          "requests": 1,
+          "rowThinning": 1,
+          "totalMs": 30
+        },
+        {
+          "level": 0,
+          "x": 12,
+          "y": 12,
+          "cols": 512,
+          "rows": 512,
+          "stepX": 1,
+          "stepY": 1,
+          "bytesFetched": 23679744,
+          "bytesUsed": 1048576,
+          "requests": 1,
+          "rowThinning": 1,
+          "totalMs": 29
+        }
+      ],
+      "fractionOfFile": 0.1765072211044042
+    },
+    "readMs": 138.6,
+    "network": {
+      "requests": 6,
+      "transferSize": 94851848,
+      "encodedBodySize": 94850048
+    },
+    "finishedAt": "2026-08-10T09:02:29.270Z",
+    "view": "zoom",
+    "case": "tiles-zoom-512mb",
+    "wallMs": 239
+  },
+  {
+    "url": "http://localhost:5200/synth-4gb.fits",
+    "startedAt": "2026-08-10T09:02:29.452Z",
+    "read": {
+      "url": "http://localhost:5200/synth-4gb.fits",
+      "source": "http-range",
+      "size": 4294972800,
+      "indexBytes": 23040,
+      "hdu": 0,
+      "width": 32768,
+      "height": 32768,
+      "levels": 7,
+      "tiles": [
+        {
+          "level": 0,
+          "x": 32,
+          "y": 32,
+          "cols": 512,
+          "rows": 512,
+          "stepX": 1,
+          "stepY": 1,
+          "bytesFetched": 1048576,
+          "bytesUsed": 1048576,
+          "requests": 512,
+          "rowThinning": 1,
+          "totalMs": 412
+        },
+        {
+          "level": 0,
+          "x": 33,
+          "y": 32,
+          "cols": 512,
+          "rows": 512,
+          "stepX": 1,
+          "stepY": 1,
+          "bytesFetched": 1048576,
+          "bytesUsed": 1048576,
+          "requests": 512,
+          "rowThinning": 1,
+          "totalMs": 310
+        },
+        {
+          "level": 0,
+          "x": 32,
+          "y": 33,
+          "cols": 512,
+          "rows": 512,
+          "stepX": 1,
+          "stepY": 1,
+          "bytesFetched": 1048576,
+          "bytesUsed": 1048576,
+          "requests": 512,
+          "rowThinning": 1,
+          "totalMs": 405
+        },
+        {
+          "level": 0,
+          "x": 33,
+          "y": 33,
+          "cols": 512,
+          "rows": 512,
+          "stepX": 1,
+          "stepY": 1,
+          "bytesFetched": 1048576,
+          "bytesUsed": 1048576,
+          "requests": 512,
+          "rowThinning": 1,
+          "totalMs": 298
+        }
+      ],
+      "fractionOfFile": 0.0009819256596921872
+    },
+    "readMs": 1432.7,
+    "network": {
+      "requests": 83,
+      "transferSize": 321860,
+      "encodedBodySize": 296960
+    },
+    "finishedAt": "2026-08-10T09:02:30.895Z",
+    "view": "zoom",
+    "case": "tiles-zoom-4gb",
+    "wallMs": 1555
+  },
+  {
+    "url": "http://localhost:5200/synth-512mb.fits",
+    "startedAt": "2026-08-10T09:02:31.092Z",
+    "read": {
+      "url": "http://localhost:5200/synth-512mb.fits",
+      "source": "http-range",
+      "size": 536760000,
+      "indexBytes": 23040,
+      "hdu": 0,
+      "width": 11584,
+      "height": 11584,
+      "levels": 6,
+      "tiles": [
+        {
+          "level": 5,
+          "x": 0,
+          "y": 0,
+          "cols": 362,
+          "rows": 362,
+          "stepX": 32,
+          "stepY": 32,
+          "bytesFetched": 16728744,
+          "bytesUsed": 16728744,
+          "requests": 362,
+          "rowThinning": 1,
+          "totalMs": 218
+        }
+      ],
+      "fractionOfFile": 0.03120907668231612
+    },
+    "readMs": 222,
+    "network": {
+      "requests": 83,
+      "transferSize": 3899144,
+      "encodedBodySize": 3874244
+    },
+    "finishedAt": "2026-08-10T09:02:31.329Z",
+    "view": "overview",
+    "case": "tiles-overview-512mb",
+    "wallMs": 346
+  },
+  {
+    "url": "http://localhost:5200/synth-4gb.fits",
+    "startedAt": "2026-08-10T09:02:31.515Z",
+    "read": {
+      "url": "http://localhost:5200/synth-4gb.fits",
+      "source": "http-range",
+      "size": 4294972800,
+      "indexBytes": 23040,
+      "hdu": 0,
+      "width": 32768,
+      "height": 32768,
+      "levels": 7,
+      "tiles": [
+        {
+          "level": 6,
+          "x": 0,
+          "y": 0,
+          "cols": 512,
+          "rows": 128,
+          "stepX": 64,
+          "stepY": 256,
+          "bytesFetched": 16744960,
+          "bytesUsed": 16744960,
+          "requests": 128,
+          "rowThinning": 4,
+          "totalMs": 118
+        }
+      ],
+      "fractionOfFile": 0.0039040992296854593
+    },
+    "readMs": 120.8,
+    "network": {
+      "requests": 83,
+      "transferSize": 10752392,
+      "encodedBodySize": 10727492
+    },
+    "finishedAt": "2026-08-10T09:02:31.651Z",
+    "view": "overview",
+    "case": "tiles-overview-4gb",
+    "wallMs": 238
+  }
+]

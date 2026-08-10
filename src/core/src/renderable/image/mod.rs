@@ -1,5 +1,6 @@
 pub mod cuts;
 pub mod grid;
+pub mod streamed;
 pub mod subdivide_texture;
 
 use al_core::texture::format::PixelType;
@@ -77,9 +78,16 @@ pub struct Image {
     reg: Region,
     // The coo system in which the polygonal region has been defined
     coo_sys: CooSystem,
+
+    /// Detail drawn on top of the overview, for streamed images.
+    ///
+    /// The overview covers the whole image at the coarsest level and is always
+    /// there, so refinement only ever adds: a tile it has not read yet is left
+    /// undrawn and the coarser pixels show through.
+    refine: Option<streamed::Refine>,
 }
 
-const TEX_PARAMS: &[(u32, u32)] = &[
+pub(crate) const TEX_PARAMS: &[(u32, u32)] = &[
     (
         WebGlRenderingCtx::TEXTURE_MIN_FILTER,
         WebGlRenderingCtx::NEAREST_MIPMAP_NEAREST,
@@ -249,7 +257,52 @@ impl Image {
             reg,
             // The coo system in which the polygonal region has been defined
             coo_sys,
+            refine: None,
         })
+    }
+
+    /// Start refining this image from `reader` as the camera moves.
+    pub fn refine_from(
+        &mut self,
+        reader: std::rc::Rc<al_fits::reader::ImageReader>,
+        budget: u64,
+    ) -> Result<(), JsValue> {
+        self.refine = Some(streamed::Refine::new(&self.gl, reader, budget)?);
+        Ok(())
+    }
+
+    /// Bring any refinement up to date. Returns whether a redraw is needed.
+    pub fn update_refinement(
+        &mut self,
+        camera: &CameraViewPort,
+        projection: &ProjectionType,
+    ) -> Result<bool, JsValue> {
+        let gl = self.gl.clone();
+        let wcs = &self.wcs;
+
+        match self.refine.as_mut() {
+            Some(refine) => refine.update(&gl, camera, projection, wcs),
+            None => Ok(false),
+        }
+    }
+
+    /// Build an image from a ready-made grid of texture patches.
+    ///
+    /// The streamed path assembles its patches from pyramid tiles rather than
+    /// from a whole decoded file, but everything downstream — the mesh, the
+    /// shaders, the layer — is the same.
+    #[allow(clippy::too_many_arguments)]
+    pub fn from_patches(
+        gl: WebGlContext,
+        patches: ImagePatches,
+        wcs: WCS,
+        bscale: f32,
+        bzero: f32,
+        blank: Option<f32>,
+        coo_sys: CooSystem,
+        header: Option<ValueMap>,
+    ) -> Result<Self, JsValue> {
+        Self::init_buffers(gl, patches, wcs, bscale, bzero, blank, coo_sys, header)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -804,6 +857,24 @@ impl Image {
                     );
 
                 off_indices += num_indices;
+            }
+
+            // Detail on top of the overview, where it has arrived.
+            if let Some(refine) = self.refine.as_ref() {
+                if refine.has_mesh() {
+                    let shader_bound = shader.bind(&self.gl);
+                    let shader_bound = shader_bound
+                        .attach_uniforms_with_params_from(cfg, colormaps)
+                        .attach_uniform("opacity", opacity)
+                        .attach_uniform("scale", &self.bscale)
+                        .attach_uniform("offset", &self.bzero);
+
+                    if let Some(blank) = self.blank {
+                        shader_bound.attach_uniform("blank", &blank);
+                    }
+
+                    refine.draw(&self.gl, shader_bound)?;
+                }
             }
 
             Ok(())

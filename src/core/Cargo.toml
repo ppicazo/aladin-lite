@@ -8,7 +8,7 @@ authors = [ "baumannmatthieu0@gmail.com", "matthieu.baumann@astro.unistra.fr",]
 edition = "2018"
 
 [workspace]
-members = [ "al-core", "al-api",]
+members = [ "al-core", "al-api", "al-fits",]
 
 [lib]
 crate-type = [ "cdylib",]
@@ -61,6 +61,9 @@ path = "./al-core"
 
 [dependencies.al-api]
 path = "./al-api"
+
+[dependencies.al-fits]
+path = "./al-fits"
 
 [dependencies.web-sys]
 version = "0.3.56"

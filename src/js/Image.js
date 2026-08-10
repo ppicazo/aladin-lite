@@ -454,7 +454,13 @@ export let Image = (function () {
             let self = this;
             let promise;
 
-            if (this.imgFormat === 'fits') {
+            if (this.options && this.options.streaming) {
+                promise = this._addStreamedFITS(layer)
+                    .catch(e => {
+                        console.error(`Image located at ${this.url} could not be streamed. Does the server support HTTP range requests and CORS? Reason: `, e)
+                        return Promise.reject(e)
+                    })
+            } else if (this.imgFormat === 'fits') {
                 promise = this._addFITS(layer)
                     .catch(e => {
                         console.error(`Image located at ${this.url} could not be parsed as fits file. Is the imgFormat specified correct? Reason: `, e)
@@ -522,6 +528,32 @@ export let Image = (function () {
             });
 
             return promise;
+        };
+
+        /**
+         * Display the FITS without downloading it.
+         *
+         * The whole file is never fetched: the WASM side reads the headers over
+         * HTTP range requests, picks a level of detail whose tile grid is
+         * affordable, and reads only those tiles. What this costs does not grow
+         * with the size of the file, so it displays images that `_addFITS`
+         * cannot open at all.
+         *
+         * Needs a server that honours Range and, cross-origin, exposes
+         * Content-Range via Access-Control-Expose-Headers.
+         */
+        Image.prototype._addStreamedFITS = function(layer) {
+            // Set before the metadata is built: it selects the cut values and
+            // becomes the ImageExt the WASM side deserialises, which fails
+            // outright when it is undefined.
+            this.imgFormat = 'fits';
+
+            return this.view.wasm.addStreamedFITSImage(
+                this.url,
+                this._prepareMetadataForWASM(),
+                layer,
+                this.options.hdu
+            );
         };
 
         Image.prototype._addFITS = function(layer) {

@@ -50,7 +50,10 @@
     "test:update-snapshots": "npx playwright test --update-snapshots",
     "doc": "jsdoc -c jsdoc.json src/js src/js/gui src/js/shapes src/js/libs/astro && cp aladin-logo.png docs/ && cp jsdoc-custom-style.css docs/ && cp jsdoc-make-responsive.js docs/",
     "doc:dev": "npm run doc && open docs/index.html",
-    "analyze": "vite build --mode analyze"
+    "analyze": "vite build --mode analyze",
+    "bench:data": "python3 bench/gen_fits.py --size 64MB --out bench/data/synth-64mb.fits && python3 bench/gen_fits.py --size 512MB --out bench/data/synth-512mb.fits && python3 bench/gen_fits.py --size 4GB --out bench/data/synth-4gb.fits",
+    "bench:serve": "node bench/serve.mjs",
+    "bench": "node bench/run.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.47.0",

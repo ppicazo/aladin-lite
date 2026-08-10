@@ -1,0 +1,113 @@
+[
+  {
+    "url": "http://localhost:5200/synth-64mb.fits",
+    "startedAt": "2026-08-10T05:27:51.307Z",
+    "probe": {
+      "url": "http://localhost:5200/synth-64mb.fits",
+      "source": "http-range",
+      "size": 67112640,
+      "bytesRead": 23040,
+      "hdus": [
+        {
+          "index": 0,
+          "kind": "primary",
+          "bitpix": -32,
+          "axes": [
+            4096,
+            4096
+          ],
+          "dataOffset": 2880,
+          "dataLength": 67108864,
+          "position": {
+            "ra": 83.82200000000002,
+            "dec": -5.390999999999999,
+            "fov": 1.999308826236404
+          }
+        }
+      ]
+    },
+    "probeMs": 28.7,
+    "network": {
+      "requests": 1,
+      "transferSize": 65836,
+      "encodedBodySize": 65536
+    },
+    "finishedAt": "2026-08-10T05:27:51.337Z",
+    "case": "probe-64mb",
+    "wallMs": 927
+  },
+  {
+    "url": "http://localhost:5200/synth-512mb.fits",
+    "startedAt": "2026-08-10T05:27:51.779Z",
+    "probe": {
+      "url": "http://localhost:5200/synth-512mb.fits",
+      "source": "http-range",
+      "size": 536760000,
+      "bytesRead": 23040,
+      "hdus": [
+        {
+          "index": 0,
+          "kind": "primary",
+          "bitpix": -32,
+          "axes": [
+            11584,
+            11584
+          ],
+          "dataOffset": 2880,
+          "dataLength": 536756224,
+          "position": {
+            "ra": 83.82200000000002,
+            "dec": -5.390999999999999,
+            "fov": 1.9996243594481766
+          }
+        }
+      ]
+    },
+    "probeMs": 19,
+    "network": {
+      "requests": 1,
+      "transferSize": 65836,
+      "encodedBodySize": 65536
+    },
+    "finishedAt": "2026-08-10T05:27:51.799Z",
+    "case": "probe-512mb",
+    "wallMs": 288
+  },
+  {
+    "url": "http://localhost:5200/synth-4gb.fits",
+    "startedAt": "2026-08-10T05:27:52.100Z",
+    "probe": {
+      "url": "http://localhost:5200/synth-4gb.fits",
+      "source": "http-range",
+      "size": 4294972800,
+      "bytesRead": 23040,
+      "hdus": [
+        {
+          "index": 0,
+          "kind": "primary",
+          "bitpix": -32,
+          "axes": [
+            32768,
+            32768
+          ],
+          "dataOffset": 2880,
+          "dataLength": 4294967296,
+          "position": {
+            "ra": 83.82200000000002,
+            "dec": -5.390999999999999,
+            "fov": 1.9997359422588743
+          }
+        }
+      ]
+    },
+    "probeMs": 16.1,
+    "network": {
+      "requests": 1,
+      "transferSize": 65836,
+      "encodedBodySize": 65536
+    },
+    "finishedAt": "2026-08-10T05:27:52.117Z",
+    "case": "probe-4gb",
+    "wallMs": 197
+  }
+]

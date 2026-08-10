@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Streamed FITS overlay</title>
+    <style>
+        body { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 12px; }
+        #aladin-lite-div { width: 640px; height: 640px; }
+        pre { background: #f4f4f4; padding: 10px; white-space: pre-wrap; }
+        #status { color: #666; }
+    </style>
+</head>
+<body>
+
+<p>
+    Displays a FITS image without downloading it: headers are read over HTTP range
+    requests, a level of detail is chosen whose tile grid is affordable, and only
+    those tiles are fetched.
+</p>
+<p><code>?file=http://localhost:5200/synth-4gb.fits</code></p>
+<p id="status">loading…</p>
+
+<div id="aladin-lite-div"></div>
+<pre id="info"></pre>
+
+<script type="module">
+    import A from '../src/js/A.js';
+
+    const params = new URLSearchParams(location.search);
+    const file = params.get('file') || 'http://localhost:5200/synth-4gb.fits';
+
+    const status = document.getElementById('status');
+    const info = document.getElementById('info');
+
+    A.init.then(() => {
+        const aladin = A.aladin('#aladin-lite-div', {
+            cooFrame: 'icrs',
+            log: false,
+            backgroundColor: 'rgba(0, 0, 0, 255)',
+            showReticle: false,
+        });
+
+        // A.image reports through callbacks and keeps the rest of what the WASM
+        // side returns — the level chosen, the file size, how the bytes were
+        // reached — to itself. Wrapping the call is the least invasive way to
+        // see all of it. Must happen before the layer is added.
+        const wasm = aladin.view.wasm;
+        const addStreamed = wasm.addStreamedFITSImage.bind(wasm);
+        const t0 = performance.now();
+
+        wasm.addStreamedFITSImage = (...args) =>
+            addStreamed(...args).then((result) => {
+                const report = {...result, totalMs: +(performance.now() - t0).toFixed(1)};
+                info.textContent = JSON.stringify(report, null, 2);
+                status.textContent = `displayed in ${report.totalMs} ms`;
+                window.__benchResult = report;
+                console.log(JSON.stringify(report));
+                return result;
+            }).catch((e) => {
+                status.textContent = 'failed';
+                info.textContent = (e && e.message) || String(e);
+                window.__benchResult = {error: (e && e.message) || String(e)};
+                throw e;
+            });
+
+        const image = A.image(file, {
+            name: 'streamed',
+            streaming: true,
+            colormap: 'viridis',
+            successCallback: (ra, dec, fov) => {
+                aladin.gotoRaDec(ra, dec);
+                aladin.setFoV(fov * 1.5);
+            },
+        });
+
+        aladin.setOverlayImageLayer(image, 'streamed');
+
+        // Exposed so that scripted zoom tests can drive the camera.
+        window.__aladin = aladin;
+    });
+</script>
+</body>
+</html>

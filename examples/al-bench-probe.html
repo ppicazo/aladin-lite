@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>FITS probe benchmark</title>
+    <style>
+        body { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 12px; }
+        pre { background: #f4f4f4; padding: 10px; white-space: pre-wrap; }
+        #status { color: #666; }
+    </style>
+</head>
+<body>
+
+<p>
+    Reads a FITS file's structure — HDUs, dimensions, sky position — from its headers
+    alone, over HTTP range requests. Bytes transferred should stay in the kilobytes
+    regardless of file size.
+</p>
+<p>
+    <code>?file=http://localhost:5200/synth-4gb.fits</code>
+</p>
+<p id="status">idle</p>
+
+<pre id="summary"></pre>
+<pre id="json"></pre>
+
+<script type="module">
+    import {runProbe, formatProbeResult} from '../bench/bench.js';
+
+    const params = new URLSearchParams(location.search);
+    const file = params.get('file') || 'http://localhost:5200/synth-4gb.fits';
+
+    const status = document.getElementById('status');
+
+    runProbe({url: file, onLog: (m) => { status.textContent = m; }})
+        .then((result) => {
+            document.getElementById('summary').textContent = formatProbeResult(result);
+            document.getElementById('json').textContent = JSON.stringify(result, null, 2);
+            status.textContent = 'done';
+            window.__benchResult = result;
+            console.log(JSON.stringify(result));
+        })
+        .catch((e) => {
+            status.textContent = 'harness failure';
+            document.getElementById('summary').textContent = (e && e.stack) || String(e);
+            window.__benchResult = {fatal: String(e)};
+        });
+</script>
+</body>
+</html>

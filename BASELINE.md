@@ -163,6 +163,36 @@ so — and it is what keeps a whole-image view affordable when the rows it needs
 are scattered across gigabytes. A genuinely cheap overview of a huge file wants
 pre-tiling, which is Phase 6.
 
+## Why the 4 GB image does not refine at high zoom
+
+Traced with logging on the decision, the request spawns and the fetches
+themselves. The pipeline is not broken anywhere:
+
+| | |
+|---|---|
+| visible rectangle at 64× zoom | `(16086,16086)-(16683,16683)` — a 597 px window, correct |
+| level chosen | 2, wanted 0; 2×2 tiles |
+| tiles requested | 4 |
+| fetches begun / completed | 15 / 15, including all four level-2 tiles |
+| read errors | 0 |
+
+Every read completes. What does not happen, inside a 25 s window, is the
+decode and upload that follow — the log ends on the four `fetch done` lines.
+Those four tiles are 512 range requests between them, and they are competing
+with a main thread that is redrawing every frame through SwiftShader, so the
+promise resolutions that finish each read are starved by rendering.
+
+That is two effects at once, and they are the two Phase 3 addresses: **request
+count** (512 requests for one screenful, against six connections per origin)
+and **main-thread contention** (fetch completions and decode share a thread with
+drawing). Neither is a logic error, which is why four rounds of changing the
+tiling, the level choice and the visible rectangle moved the picture not at all.
+
+Worth keeping in mind when reading the earlier numbers: `tiles-zoom-4gb` fetched
+2048 requests in 1.4 s when driven directly by `readFITSTiles`, with nothing
+rendering. The same work behind a live render loop does not finish in 25 s.
+Measuring the reader alone flatters it.
+
 ## Targets for the phases that follow
 
 | | baseline | target |

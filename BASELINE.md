@@ -1,8 +1,14 @@
 # Baseline — FITS overlay performance before any changes
 
-Measured on `feat/wasm-fits-pipeline` at the fork point, with the stock
-`Image.js` → `add_fits_image` → `crop_image` path. Every later phase re-runs
-this suite and appends its numbers, so regressions are visible.
+Measured on `feat/wasm-fits-pipeline`, based on upstream `develop`, with the
+stock `Image.js` → `add_fits_image` → `crop_image` path. Every later phase
+re-runs this suite and appends its numbers, so regressions are visible.
+
+The whole suite is re-run whenever the branch moves to a new base, because
+absolute timings shift with it — these were re-measured after rebasing from
+`master` onto `develop`, which changed core rendering code. Every conclusion
+below survived that move unchanged; only the numbers moved, and they got
+faster.
 
 ## How to reproduce
 
@@ -28,18 +34,18 @@ Raw JSON per run lands in `bench/results/`.
 Frame times come from a software rasteriser and are pessimistic in absolute
 terms. Compare them across runs, not against a real GPU.
 
-## Results — 2026-08-10 (`bench/results/2026-08-10T04-49-02-170Z.json`)
+## Results — 2026-08-10 (`bench/results/2026-08-10T09-02-31-680Z.json`)
 
 | case | outcome | load | bytes fetched | wasm heap growth | peak JS heap | max frame during load | pan/zoom p95 |
 |---|---|---|---|---|---|---|---|
-| 64mb | ok | 1.3 s | 64 MiB | 66 MiB | 5 MiB | 138.9 ms | 20.6 ms |
-| 512mb | ok | 4.6 s | 512 MiB | 728 MiB | 36 MiB | 319.3 ms | 19.9 ms |
-| 1gb | **FAIL** — `recursive use of an object detected which would lead to unsafe aliasing in rust` | 8.1 s | 1024 MiB | 1368 MiB | 1029 MiB | 764 ms | n/a |
-| 2gb | **FAIL** — `Image HDU not found in the FITS` | 10.4 s | 2048 MiB | 24 MiB | 36 MiB | 285 ms | n/a |
-| 4gb | **FAIL** — `Image HDU not found in the FITS` | 21.5 s | 4096 MiB | 24 MiB | 37 MiB | 288.1 ms | n/a |
-| 64mb-x4 | ok | 1.4 s | 256 MiB | 66 MiB | 198 MiB | 170.3 ms | 48.8 ms |
-| 64mb-x10 | ok | 2.6 s | 640 MiB | 66 MiB | 262 MiB | 315 ms | 93.8 ms |
-| 512mb-x4 | ok | 7.2 s | 2048 MiB | 728 MiB | 1029 MiB | 703.2 ms | 60.2 ms |
+| 64mb | ok | 1.3 s | 64 MiB | 66 MiB | 5 MiB | 77 ms | 17.5 ms |
+| 512mb | ok | 2.3 s | 512 MiB | 705 MiB | 5 MiB | 244.3 ms | 17.8 ms |
+| 1gb | **FAIL** — `recursive use of an object detected which would lead to unsafe aliasing in rust` | 6.4 s | 1024 MiB | 1368 MiB | 1029 MiB | 962.9 ms | n/a |
+| 2gb | **FAIL** — `Image HDU not found in the FITS` | 4.6 s | 2048 MiB | 24 MiB | 36 MiB | 181.5 ms | n/a |
+| 4gb | **FAIL** — `Image HDU not found in the FITS` | 8.2 s | 4096 MiB | 24 MiB | 36 MiB | 201.9 ms | n/a |
+| 64mb-x4 | ok | 1.0 s | 256 MiB | 130 MiB | 134 MiB | 128.2 ms | 18.9 ms |
+| 64mb-x10 | ok | 1.8 s | 640 MiB | 66 MiB | 198 MiB | 120.9 ms | 58.6 ms |
+| 512mb-x4 | ok | 4.8 s | 2048 MiB | 705 MiB | 1059 MiB | 569.5 ms | 18.6 ms |
 
 ## What the numbers say
 
@@ -65,20 +71,20 @@ resolution the camera can resolve. This is the single largest lever: at
 fit-to-screen zoom a 4 GB image needs a few MB of pixels, not 4 GB.
 
 **Memory runs at roughly 1.4× file size inside WASM, on top of the JS copy.**
-512 MB of FITS costs 728 MiB of wasm heap — the raw bytes plus the padded
+512 MB of FITS costs 705 MiB of wasm heap — the raw bytes plus the padded
 `crop_image` patch buffers — while the JS side still holds the original
 `ArrayBuffer`. Two full copies of a large file exist simultaneously, one of them
 in a 32-bit address space.
 
 **Many images do not share anything.** 10 × 64 MB loads, but interaction decays
-from a 20.6 ms p95 to 93.8 ms — every layer keeps all of its patches resident at
-full resolution and is re-rasterised every frame. 4 × 512 MB reaches 1029 MiB of
-JS heap and 703 ms main-thread stalls. Scaling to "many FITS, some very large"
+from a 17.5 ms p95 to 58.6 ms — every layer keeps all of its patches resident at
+full resolution and is re-rasterised every frame. 4 × 512 MB reaches 1059 MiB of
+JS heap and 570 ms main-thread stalls. Scaling to "many FITS, some very large"
 needs a shared, evictable, level-of-detail tile cache, not N independent
 full-resolution copies.
 
 **Loading blocks the main thread.** Max frame during load tracks file size
-directly: 139 ms at 64 MB, 319 ms at 512 MB, 764 ms at 1 GB. Decode and upload
+directly: 77 ms at 64 MB, 244 ms at 512 MB, 963 ms at 1 GB. Decode and upload
 happen inline in the call from JS, so the UI is frozen for that entire window.
 
 ## Phase 1 — header-only probe over HTTP ranges
@@ -89,13 +95,13 @@ arithmetically. The bytes in between are never requested.
 
 | case | outcome | file size | probe time | bytes fetched | requests | HDUs |
 |---|---|---|---|---|---|---|
-| probe-64mb | ok | 64 MiB | 28.7 ms | 65836 B | 1 | 1 |
-| probe-512mb | ok | 512 MiB | 19 ms | 65836 B | 1 | 1 |
-| probe-4gb | ok | 4096 MiB | 16.1 ms | 65836 B | 1 | 1 |
+| probe-64mb | ok | 64 MiB | 16.3 ms | 65836 B | 1 | 1 |
+| probe-512mb | ok | 512 MiB | 16.5 ms | 65836 B | 1 | 1 |
+| probe-4gb | ok | 4096 MiB | 9.6 ms | 65836 B | 1 | 1 |
 
 Cost is flat in file size: one request, 64 KiB, regardless. The 4 GB file that
 the loading path cannot open at all — after downloading all 4096 MiB of it — is
-described completely in 16 ms from 0.0015% of its bytes, WCS included. The
+described completely in 9.6 ms from 0.0015% of its bytes, WCS included. The
 64 KiB is simply the opening probe window; the primary header itself is 2880 B.
 
 Two properties make this work and both carry into the tiling phase: the total
@@ -114,18 +120,18 @@ whole image, under a 16 MiB budget.
 
 | case | outcome | file size | tiles | read time | bytes fetched | bytes used | requests | fraction of file |
 |---|---|---|---|---|---|---|---|---|
-| tiles-zoom-512mb | ok | 512 MiB | 4 | 318.6 ms | 90 MiB | 4 MiB | 4 | 17.6507% |
-| tiles-zoom-4gb | ok | 4096 MiB | 4 | 2472.6 ms | 4 MiB | 4 MiB | 2048 | 0.0982% |
-| tiles-overview-512mb | ok | 512 MiB | 1 | 525.4 ms | 16 MiB | 16 MiB | 362 | 3.1209% |
-| tiles-overview-4gb | ok | 4096 MiB | 1 | 218.6 ms | 16 MiB | 16 MiB | 128 | 0.3904% |
+| tiles-zoom-512mb | ok | 512 MiB | 4 | 138.6 ms | 90 MiB | 4 MiB | 4 | 17.6507% |
+| tiles-zoom-4gb | ok | 4096 MiB | 4 | 1432.7 ms | 4 MiB | 4 MiB | 2048 | 0.0982% |
+| tiles-overview-512mb | ok | 512 MiB | 1 | 222 ms | 16 MiB | 16 MiB | 362 | 3.1209% |
+| tiles-overview-4gb | ok | 4096 MiB | 1 | 120.8 ms | 16 MiB | 16 MiB | 128 | 0.3904% |
 
 Byte and request totals here are the reader's own counts, not Resource Timing:
 the browser's entry buffer caps out around 250 entries, so a tile needing 512
 requests shows up there as far fewer.
 
 A 4 GB image — which the loading path cannot open at all — now yields a
-full-resolution view of a region in 2.5 s from 0.1% of its bytes, and a
-whole-image overview in 219 ms from 0.39%.
+full-resolution view of a region in 1.4 s from 0.1% of its bytes, and a
+whole-image overview in 121 ms from 0.39%.
 
 **The byte counts are shaped by row stride, not by cleverness.** A tile is one
 byte span per row, and those spans sit `NAXIS1 * bytes_per_pixel` apart. Merging
@@ -137,9 +143,9 @@ requests in flight.
 
 The two zoom rows show both sides of that threshold. The 512 MB image has rows
 46 KiB apart, so its tiles merge into one read each — 23 MiB transferred to use
-1 MiB, and 75 ms per tile. The 4 GB image has rows 256 KiB apart, past the
+1 MiB, and 35 ms per tile. The 4 GB image has rows 256 KiB apart, past the
 threshold, so its tiles stay unmerged and fetch exactly the 1 MiB they need —
-but as 512 separate requests, which is why they take 700 ms each. The
+but as 512 separate requests, which is why they take 360 ms each. The
 apparently wasteful case is the fast one; measuring only bytes would have led
 the wrong way here, which is why both `bytesFetched` and `bytesUsed` are
 reported.
@@ -164,6 +170,6 @@ pre-tiling, which is Phase 6.
 | largest file that loads at all | < 1 GB | 16 GB+ |
 | bytes fetched at fit-to-screen zoom | 100% of file | < 1% |
 | wasm heap for a large file | ~1.4× file size | bounded by tile budget, independent of file size |
-| max main-thread frame during load | 764 ms @ 1 GB | < 16 ms at any size |
-| pan/zoom p95 with 10 layers | 93.8 ms | < 20 ms |
+| max main-thread frame during load | 963 ms @ 1 GB | < 16 ms at any size |
+| pan/zoom p95 with 10 layers | 58.6 ms | < 20 ms |
 | failure mode above the ceiling | wrong error, bad client state | explicit, recoverable |

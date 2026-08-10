@@ -252,8 +252,8 @@ impl ReadPlan {
 ///
 /// It is worth being concrete about what this buys, because the byte counts
 /// look alarming on their own. A 512 MB image has rows 46 KiB apart, so a tile
-/// merges into one 23 MiB read to use 1 MiB — measured at 75 ms, against about
-/// 700 ms for the same tile as 512 separate requests. A 4 GB image has rows
+/// merges into one 23 MiB read to use 1 MiB — measured at 35 ms, against about
+/// 360 ms for the same tile as 512 separate requests. A 4 GB image has rows
 /// 256 KiB apart, past the threshold, so its tiles stay unmerged and fetch
 /// exactly the megabyte they need. Both are the faster choice for their shape.
 pub const COALESCE_GAP: u64 = 64 * 1024;

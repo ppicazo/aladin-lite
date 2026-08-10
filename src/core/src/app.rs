@@ -64,6 +64,16 @@ use al_core::FrameBufferObject;
 use al_api::image::ImageParams;
 use web_sys::Worker;
 
+/// A layer built off the render loop, waiting to be registered.
+///
+/// The ack travels with the layer so that each caller learns the fate of its
+/// own image: a shared reply channel would hand one caller another's result
+/// whenever two images load at once.
+pub struct PendingImage {
+    pub layer: ImageLayer,
+    pub ack: async_channel::Sender<Result<ImageParams, String>>,
+}
+
 pub struct App {
     pub gl: WebGlContext,
 
@@ -117,12 +127,15 @@ pub struct App {
     worker_resp_recv: async_channel::Receiver<WorkerResponse>,
 
     // Async data receivers
-    //img_send: async_channel::Sender<ImageLayer>,
-    img_recv: async_channel::Receiver<ImageLayer>,
-    ack_img_send: async_channel::Sender<ImageParams>,
+    /// Layers built off the render loop arrive here.
+    ///
+    /// Reading a streamed image is asynchronous, and the reads cannot hold a
+    /// mutable borrow of the app across their awaits, so the task builds the
+    /// whole layer and hands it over through this channel instead.
+    img_send: async_channel::Sender<PendingImage>,
+    img_recv: async_channel::Receiver<PendingImage>,
 
     browser_features_support: BrowserFeaturesSupport,
-    //ack_img_recv: async_channel::Receiver<ImageParams>,
     // callbacks
     //callback_position_changed: js_sys::Function,
 }
@@ -212,8 +225,7 @@ impl App {
         let moc = MOCRenderer::new(&gl)?;
         gl.clear_color(0.1, 0.1, 0.1, 1.0);
 
-        let (_, img_recv) = async_channel::unbounded::<ImageLayer>();
-        let (ack_img_send, _) = async_channel::unbounded::<ImageParams>();
+        let (img_send, img_recv) = async_channel::unbounded::<PendingImage>();
         let (worker_resp_send, worker_resp_recv) = async_channel::unbounded::<WorkerResponse>();
 
         let dist_dragging = 0.0;
@@ -318,12 +330,11 @@ impl App {
             colormaps,
             projection,
 
-            //img_send,
+            img_send,
             img_recv,
-            ack_img_send,
             worker_resp_recv,
 
-            browser_features_support, //ack_img_recv,
+            browser_features_support,
         })
     }
 
@@ -555,21 +566,31 @@ impl App {
 
     pub(crate) fn poll_worker_responses(&mut self) -> Result<(), JsValue> {
         // Check for async retrieval
-        if let Ok(img) = self.img_recv.try_recv() {
-            let params = img.get_params();
-            self.layers.add_image(
-                img,
+        if let Ok(PendingImage { layer, ack }) = self.img_recv.try_recv() {
+            let params = layer.get_params();
+            let added = self.layers.add_image(
+                layer,
                 &mut self.camera,
                 &self.projection,
                 &mut self.tile_fetcher,
-            )?;
-            self.request_redraw = true;
+            );
 
-            // Send the ack to the js promise so that she finished
-            let ack_img_send = self.ack_img_send.clone();
+            // The caller's promise resolves off the back of this, and only now:
+            // resolving any earlier would let it configure a layer the viewer
+            // has not registered yet.
+            let result = added.map(|_| params).map_err(|e| {
+                e.as_string()
+                    .unwrap_or_else(|| "the image layer could not be added".to_string())
+            });
+
+            if result.is_ok() {
+                self.request_redraw = true;
+            }
+
             wasm_bindgen_futures::spawn_local(async move {
-                ack_img_send.send(params).await.unwrap_throw();
-            })
+                // A caller that dropped its promise is not an error.
+                let _ = ack.send(result).await;
+            });
         }
 
         while let Ok(response) = self.worker_resp_recv.try_recv() {
@@ -1276,6 +1297,75 @@ impl App {
         self.request_for_new_tiles = true;
 
         self.request_redraw = true;
+    }
+
+    /// Display a FITS image by streaming it, without downloading the file.
+    ///
+    /// The read happens off the render loop: it cannot borrow the app across
+    /// its awaits, so it builds the layer on its own and sends it through
+    /// `img_send`, which [`poll_worker_responses`](Self::poll_worker_responses)
+    /// already drains. The returned promise resolves once the layer is on its
+    /// way, with the image's position and cuts.
+    pub(crate) fn add_streamed_fits_image(
+        &mut self,
+        url: String,
+        options: ImageMetadata,
+        layer: String,
+        hdu: Option<usize>,
+    ) -> js_sys::Promise {
+        use crate::renderable::image::streamed;
+        use al_fits::reader::{ImageReader, DEFAULT_TILE_BUDGET};
+
+        let gl = self.gl.clone();
+        let coo_sys = self.camera.get_coo_system();
+        let img_send = self.img_send.clone();
+
+        wasm_bindgen_futures::future_to_promise(async move {
+            let source = al_fits::open_url(&url).await?;
+            let reader = ImageReader::open(source, hdu).await?;
+
+            let (image, level) =
+                streamed::image_from_level(&gl, &reader, DEFAULT_TILE_BUDGET, coo_sys).await?;
+
+            let (width, height, _) = reader
+                .entry()
+                .image_dimensions()
+                .ok_or_else(|| JsValue::from_str("HDU has no image dimensions"))?;
+
+            let image_layer = ImageLayer {
+                images: vec![image],
+                id: layer.clone(),
+                layer,
+                options,
+            };
+
+            let (ack, ack_recv) = async_channel::bounded(1);
+            img_send
+                .send(PendingImage {
+                    layer: image_layer,
+                    ack,
+                })
+                .await
+                .map_err(|_| JsValue::from_str("the viewer went away before the image arrived"))?;
+
+            // Wait for the render loop to actually register the layer, so that
+            // whatever the caller does next finds it there.
+            let params = ack_recv
+                .recv()
+                .await
+                .map_err(|_| JsValue::from_str("the viewer went away before the image was added"))?
+                .map_err(|e| JsValue::from_str(&e))?;
+
+            let obj: js_sys::Object = serde_wasm_bindgen::to_value(&params)?.dyn_into()?;
+            js_sys::Reflect::set(&obj, &"width".into(), &(width as f64).into())?;
+            js_sys::Reflect::set(&obj, &"height".into(), &(height as f64).into())?;
+            js_sys::Reflect::set(&obj, &"level".into(), &(level as f64).into())?;
+            js_sys::Reflect::set(&obj, &"levels".into(), &(reader.grid.level_count() as f64).into())?;
+            js_sys::Reflect::set(&obj, &"fileSize".into(), &(reader.index.size as f64).into())?;
+            js_sys::Reflect::set(&obj, &"source".into(), &reader.source_kind().into())?;
+
+            Ok(obj.into())
+        })
     }
 
     pub(crate) fn get_position_angle(&self) -> Angle<f64> {

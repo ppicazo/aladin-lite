@@ -373,6 +373,28 @@ impl WebClient {
         self.app.add_fits_image(bytes, cfg, layer)
     }
 
+    /// Display a FITS image without downloading it.
+    ///
+    /// Reads the file's structure from its headers, picks a pyramid level whose
+    /// whole tile grid is affordable, and reads only those tiles over HTTP range
+    /// requests. The cost does not grow with the size of the file, so images
+    /// far beyond what `addFITSImage` can open are displayable.
+    ///
+    /// Resolves with the usual image parameters plus the image's dimensions,
+    /// the level chosen, how many levels exist, the file size and how the bytes
+    /// were reached.
+    #[wasm_bindgen(js_name = addStreamedFITSImage)]
+    pub fn add_streamed_fits_image(
+        &mut self,
+        url: String,
+        cfg: JsValue,
+        layer: String,
+        hdu: Option<usize>,
+    ) -> Result<js_sys::Promise, JsValue> {
+        let cfg: ImageMetadata = serde_wasm_bindgen::from_value(cfg)?;
+        Ok(self.app.add_streamed_fits_image(url, cfg, layer, hdu))
+    }
+
     #[wasm_bindgen(js_name = isHDUVisible)]
     pub fn is_hdu_visible(&self, layer: String, hdu_id: usize) -> Result<bool, JsValue> {
         self.app.is_hdu_visible(layer.as_str(), hdu_id)

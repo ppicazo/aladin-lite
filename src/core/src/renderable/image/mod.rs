@@ -1,5 +1,6 @@
 pub mod cuts;
 pub mod grid;
+pub mod streamed;
 pub mod subdivide_texture;
 
 use al_core::texture::format::PixelType;
@@ -79,7 +80,7 @@ pub struct Image {
     coo_sys: CooSystem,
 }
 
-const TEX_PARAMS: &[(u32, u32)] = &[
+pub(crate) const TEX_PARAMS: &[(u32, u32)] = &[
     (
         WebGlRenderingCtx::TEXTURE_MIN_FILTER,
         WebGlRenderingCtx::NEAREST_MIPMAP_NEAREST,
@@ -250,6 +251,25 @@ impl Image {
             // The coo system in which the polygonal region has been defined
             coo_sys,
         })
+    }
+
+    /// Build an image from a ready-made grid of texture patches.
+    ///
+    /// The streamed path assembles its patches from pyramid tiles rather than
+    /// from a whole decoded file, but everything downstream — the mesh, the
+    /// shaders, the layer — is the same.
+    #[allow(clippy::too_many_arguments)]
+    pub fn from_patches(
+        gl: WebGlContext,
+        patches: ImagePatches,
+        wcs: WCS,
+        bscale: f32,
+        bzero: f32,
+        blank: Option<f32>,
+        coo_sys: CooSystem,
+        header: Option<ValueMap>,
+    ) -> Result<Self, JsValue> {
+        Self::init_buffers(gl, patches, wcs, bscale, bzero, blank, coo_sys, header)
     }
 
     #[allow(clippy::too_many_arguments)]

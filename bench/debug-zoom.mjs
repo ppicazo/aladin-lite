@@ -19,8 +19,20 @@ const prefix = process.argv[3] || 'bench/zoom';
 // wide image needs hundreds of range requests per tile, so it wants longer.
 const settleMs = Number(process.argv[4] || 6000);
 
+// An https URL means measuring over HTTP/2, which needs TLS and therefore a
+// certificate the browser is told to ignore.
+const useHttp2 = file.startsWith('https:');
+const certDir = process.env.BENCH_CERT_DIR || '.';
+
 const servers = [
-    spawn('node', ['bench/serve.mjs', '--port', '5200'], {cwd, stdio: 'inherit', detached: true}),
+    spawn(
+        'node',
+        useHttp2
+            ? ['bench/serve.mjs', '--port', '5200', '--http2',
+               '--cert', `${certDir}/cert.pem`, '--key', `${certDir}/key.pem`]
+            : ['bench/serve.mjs', '--port', '5200'],
+        {cwd, stdio: 'inherit', detached: true}
+    ),
     spawn('node_modules/.bin/vite', ['--port', '5199', '--strictPort'], {cwd, stdio: 'inherit', detached: true}),
 ];
 
@@ -32,7 +44,13 @@ for (let i = 0; i < 60; i++) {
 }
 
 const browser = await chromium.launch({
-    args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+    args: [
+        '--use-gl=angle',
+        '--use-angle=swiftshader',
+        '--enable-unsafe-swiftshader',
+        ...(useHttp2 ? ['--ignore-certificate-errors'] : []),
+    ],
+    ignoreHTTPSErrors: true,
 });
 const page = await browser.newPage({viewport: {width: 900, height: 900}});
 page.on('console', (m) => {

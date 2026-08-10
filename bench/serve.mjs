@@ -12,11 +12,20 @@
  *   - streamed from disk, so file size does not bound memory
  *
  *   node bench/serve.mjs [--port 5200] [--dir bench/data]
+ *   node bench/serve.mjs --http2 --cert cert.pem --key key.pem
+ *
+ * The --http2 mode exists to measure one thing: a browser opens six connections
+ * per origin over HTTP/1.1, and a tile is one range request per row, so a
+ * screenful of a large image queues hundreds of requests behind those six.
+ * HTTP/2 multiplexes them over a single connection. Browsers only speak h2 over
+ * TLS, hence the certificate; a self-signed one is fine behind
+ * --ignore-certificate-errors.
  */
 
-import {createReadStream} from 'node:fs';
+import {createReadStream, readFileSync} from 'node:fs';
 import {stat} from 'node:fs/promises';
 import {createServer} from 'node:http';
+import {createSecureServer} from 'node:http2';
 import {extname, join, normalize, resolve} from 'node:path';
 
 function arg(name, fallback) {
@@ -76,7 +85,7 @@ function parseRange(header, size) {
     return {start, end: Math.min(end, size - 1)};
 }
 
-const server = createServer(async (req, res) => {
+const handler = async (req, res) => {
     if (req.method === 'OPTIONS') {
         res.writeHead(204, corsHeaders());
         res.end();
@@ -145,8 +154,25 @@ const server = createServer(async (req, res) => {
         return;
     }
     createReadStream(path).pipe(res);
-});
+};
+
+const useHttp2 = process.argv.includes('--http2');
+
+const server = useHttp2
+    ? createSecureServer(
+          {
+              key: readFileSync(arg('key', 'key.pem')),
+              cert: readFileSync(arg('cert', 'cert.pem')),
+              // Browsers that decline h2 fall back rather than failing.
+              allowHTTP1: true,
+          },
+          handler
+      )
+    : createServer(handler);
 
 server.listen(PORT, () => {
-    process.stderr.write(`bench data server: http://localhost:${PORT}/ -> ${ROOT}\n`);
+    const scheme = useHttp2 ? 'https' : 'http';
+    process.stderr.write(
+        `bench data server: ${scheme}://localhost:${PORT}/ -> ${ROOT}${useHttp2 ? ' (h2)' : ''}\n`
+    );
 });

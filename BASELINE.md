@@ -188,6 +188,18 @@ and **main-thread contention** (fetch completions and decode share a thread with
 drawing). Neither is a logic error, which is why four rounds of changing the
 tiling, the level choice and the visible rectangle moved the picture not at all.
 
+**Lifting the connection cap on its own is not enough.** `bench/serve.mjs
+--http2` serves the same data over TLS and h2, where hundreds of range requests
+multiplex over one connection instead of queueing behind six. Re-running the
+zoom against it produces a picture identical to HTTP/1.1 — the 4 GB image still
+shows its overview at 64x. So of the two effects, the one that dominates is the
+main thread, and the fix that matters is moving reads and decode off it rather
+than making the network wider.
+
+(The browser was given an `https` origin and told to ignore the certificate; the
+server negotiates h2 with `curl` and keeps `allowHTTP1` on as a fallback, so a
+silent downgrade cannot be completely ruled out from the picture alone.)
+
 Worth keeping in mind when reading the earlier numbers: `tiles-zoom-4gb` fetched
 2048 requests in 1.4 s when driven directly by `readFITSTiles`, with nothing
 rendering. The same work behind a live render loop does not finish in 25 s.

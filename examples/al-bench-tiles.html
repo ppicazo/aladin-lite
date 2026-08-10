@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>FITS tile read benchmark</title>
+    <style>
+        body { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 12px; }
+        pre { background: #f4f4f4; padding: 10px; white-space: pre-wrap; }
+        #status { color: #666; }
+    </style>
+</head>
+<body>
+
+<p>
+    Reads tiles out of a FITS image over HTTP range requests, without loading the
+    file. <code>view=zoom</code> reads the four full-resolution tiles a zoomed-in
+    view needs; <code>view=overview</code> reads the single tile at the top of the
+    pyramid, which covers the whole image.
+</p>
+<p>
+    <code>?file=http://localhost:5200/synth-4gb.fits&amp;view=zoom&amp;budget=16777216</code>
+</p>
+<p id="status">idle</p>
+
+<pre id="summary"></pre>
+<pre id="json"></pre>
+
+<script type="module">
+    import {runTiles, formatTilesResult} from '../bench/bench.js';
+
+    const params = new URLSearchParams(location.search);
+    const file = params.get('file') || 'http://localhost:5200/synth-4gb.fits';
+    const view = params.get('view') || 'zoom';
+    const budget = params.has('budget') ? Number(params.get('budget')) : undefined;
+
+    const TILE = 512;
+
+    /** Levels in the pyramid over an image of these dimensions. */
+    function levelCount(width, height) {
+        let levels = 1;
+        let covered = TILE;
+        while (covered < Math.max(width, height)) {
+            covered *= 2;
+            levels += 1;
+        }
+        return levels;
+    }
+
+    const plans = {
+        // What a viewport showing the image at 1:1 asks for: a 2x2 block of
+        // full-resolution tiles near the middle of the image.
+        zoom(image) {
+            const [width, height] = image.axes;
+            const lastX = Math.ceil(width / TILE) - 1;
+            const lastY = Math.ceil(height / TILE) - 1;
+            // Clamped so the 2x2 block stays on the grid for small images.
+            const cx = Math.min(Math.floor(width / 2 / TILE), Math.max(0, lastX - 1));
+            const cy = Math.min(Math.floor(height / 2 / TILE), Math.max(0, lastY - 1));
+
+            const out = [];
+            for (const y of [cy, cy + 1]) {
+                for (const x of [cx, cx + 1]) {
+                    if (x <= lastX && y <= lastY) out.push(0, x, y);
+                }
+            }
+            return out;
+        },
+        // What fit-to-screen asks for: the whole image in one tile.
+        overview(image) {
+            const [width, height] = image.axes;
+            return [levelCount(width, height) - 1, 0, 0];
+        },
+    };
+
+    const status = document.getElementById('status');
+
+    runTiles({url: file, plan: plans[view], budgetBytes: budget, onLog: (m) => { status.textContent = m; }})
+        .then((result) => {
+            result.view = view;
+            document.getElementById('summary').textContent = formatTilesResult(result);
+            document.getElementById('json').textContent = JSON.stringify(result, null, 2);
+            status.textContent = 'done';
+            window.__benchResult = result;
+            console.log(JSON.stringify(result));
+        })
+        .catch((e) => {
+            status.textContent = 'harness failure';
+            document.getElementById('summary').textContent = (e && e.stack) || String(e);
+            window.__benchResult = {fatal: String(e)};
+        });
+</script>
+</body>
+</html>

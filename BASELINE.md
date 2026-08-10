@@ -105,6 +105,58 @@ followed by a `GET`; and a server that ignores `Range` is detected from the 200
 status and its body reused as an in-memory source, so a non-cooperating origin
 is no worse than today's behaviour rather than a second full download.
 
+## Phase 2 — tiled reads with level of detail
+
+`readFITSTiles` reads 512×512 tiles at a chosen level of detail, over range
+requests. `zoom` reads the four full-resolution tiles a 1:1 view of the middle
+of the image needs; `overview` reads the single top-of-pyramid tile covering the
+whole image, under a 16 MiB budget.
+
+| case | outcome | file size | tiles | read time | bytes fetched | bytes used | requests | fraction of file |
+|---|---|---|---|---|---|---|---|---|
+| tiles-zoom-512mb | ok | 512 MiB | 4 | 318.6 ms | 90 MiB | 4 MiB | 4 | 17.6507% |
+| tiles-zoom-4gb | ok | 4096 MiB | 4 | 2472.6 ms | 4 MiB | 4 MiB | 2048 | 0.0982% |
+| tiles-overview-512mb | ok | 512 MiB | 1 | 525.4 ms | 16 MiB | 16 MiB | 362 | 3.1209% |
+| tiles-overview-4gb | ok | 4096 MiB | 1 | 218.6 ms | 16 MiB | 16 MiB | 128 | 0.3904% |
+
+Byte and request totals here are the reader's own counts, not Resource Timing:
+the browser's entry buffer caps out around 250 entries, so a tile needing 512
+requests shows up there as far fewer.
+
+A 4 GB image — which the loading path cannot open at all — now yields a
+full-resolution view of a region in 2.5 s from 0.1% of its bytes, and a
+whole-image overview in 219 ms from 0.39%.
+
+**The byte counts are shaped by row stride, not by cleverness.** A tile is one
+byte span per row, and those spans sit `NAXIS1 * bytes_per_pixel` apart. Merging
+a run of them costs about `row_stride / row_span` times the useful bytes no
+matter how long the run, so the only decision is whether to merge at all, and
+the threshold is where a bridged gap costs less than a round trip:
+`gap / bandwidth < latency / concurrency`, or 62 KiB at 10 MB/s, 50 ms and 8
+requests in flight.
+
+The two zoom rows show both sides of that threshold. The 512 MB image has rows
+46 KiB apart, so its tiles merge into one read each — 23 MiB transferred to use
+1 MiB, and 75 ms per tile. The 4 GB image has rows 256 KiB apart, past the
+threshold, so its tiles stay unmerged and fetch exactly the 1 MiB they need —
+but as 512 separate requests, which is why they take 700 ms each. The
+apparently wasteful case is the fast one; measuring only bytes would have led
+the wrong way here, which is why both `bytesFetched` and `bytesUsed` are
+reported.
+
+**The open weakness is request count, not bytes.** A level-0 tile on a
+65536-wide image costs 512 requests against an HTTP/1.1 server at 8 concurrent
+reads. HTTP/2 multiplexing, more concurrency, and moving the reads off the main
+thread (Phase 3) all attack that directly.
+
+**Overviews are bounded by budget, not by file size.** Both overview rows land
+at 16 MiB because that is the budget. Reaching it, the sampler thins rows rather
+than failing: the 4 GB overview is 512 columns by 128 rows, reported as
+`rowThinning: 4`. That is an honest degradation — vertically softer, and it says
+so — and it is what keeps a whole-image view affordable when the rows it needs
+are scattered across gigabytes. A genuinely cheap overview of a huge file wants
+pre-tiling, which is Phase 6.
+
 ## Targets for the phases that follow
 
 | | baseline | target |

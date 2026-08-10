@@ -37,6 +37,13 @@ const CASES = {
     'probe-64mb': {page: 'probe', file: `${DATA}/synth-64mb.fits`, timeoutMs: 60_000},
     'probe-512mb': {page: 'probe', file: `${DATA}/synth-512mb.fits`, timeoutMs: 60_000},
     'probe-4gb': {page: 'probe', file: `${DATA}/synth-4gb.fits`, timeoutMs: 60_000},
+
+    // Tiled reads. `zoom` is the four full-resolution tiles a 1:1 view needs;
+    // `overview` is the single tile covering the whole image.
+    'tiles-zoom-512mb': {page: 'tiles', view: 'zoom', file: `${DATA}/synth-512mb.fits`, timeoutMs: 120_000},
+    'tiles-zoom-4gb': {page: 'tiles', view: 'zoom', file: `${DATA}/synth-4gb.fits`, timeoutMs: 120_000},
+    'tiles-overview-512mb': {page: 'tiles', view: 'overview', file: `${DATA}/synth-512mb.fits`, timeoutMs: 300_000},
+    'tiles-overview-4gb': {page: 'tiles', view: 'overview', file: `${DATA}/synth-4gb.fits`, timeoutMs: 300_000},
 };
 
 // The default DSS2 base layer needs the internet. When it is unreachable the
@@ -151,10 +158,14 @@ async function runCase(browser, name, spec) {
     page.on('pageerror', (e) => note(`pageerror: ${String(e)}`));
     const crashed = new Promise((resolve) => page.on('crash', () => resolve('page crashed (out of memory)')));
 
+    const file = encodeURIComponent(spec.file);
     const url =
         spec.page === 'probe'
-            ? `${BASE}/examples/al-bench-probe.html?file=${encodeURIComponent(spec.file)}`
-            : `${BASE}/examples/al-bench-fits.html?file=${encodeURIComponent(spec.file)}&count=${spec.count}&pan=3000`;
+            ? `${BASE}/examples/al-bench-probe.html?file=${file}`
+            : spec.page === 'tiles'
+              ? `${BASE}/examples/al-bench-tiles.html?file=${file}&view=${spec.view}` +
+                (spec.budget ? `&budget=${spec.budget}` : '')
+              : `${BASE}/examples/al-bench-fits.html?file=${file}&count=${spec.count}&pan=3000`;
     process.stderr.write(`\n=== ${name} ===\n${url}\n`);
 
     const t0 = Date.now();
@@ -246,6 +257,25 @@ function toMarkdown(results) {
             r.probe ? String(r.probe.hdus.length) : 'n/a',
         ]);
 
+    // Byte and request totals come from the reader rather than from Resource
+    // Timing: the browser's entry buffer caps out around 250 entries, so a tile
+    // needing 512 requests is reported as far fewer.
+    const sum = (tiles, field) => tiles.reduce((n, t) => n + t[field], 0);
+
+    const tiles = results
+        .filter((r) => CASES[r.case]?.page === 'tiles')
+        .map((r) => [
+            r.case,
+            outcome(r),
+            r.read ? `${(r.read.size / (1 << 20)).toFixed(0)} MiB` : 'n/a',
+            r.read ? String(r.read.tiles.length) : 'n/a',
+            r.readMs != null ? `${r.readMs} ms` : 'n/a',
+            r.read ? mib(sum(r.read.tiles, 'bytesFetched')) : 'n/a',
+            r.read ? mib(sum(r.read.tiles, 'bytesUsed')) : 'n/a',
+            r.read ? String(sum(r.read.tiles, 'requests')) : 'n/a',
+            r.read ? `${(r.read.fractionOfFile * 100).toFixed(4)}%` : 'n/a',
+        ]);
+
     return [
         table(
             ['case', 'outcome', 'load', 'bytes fetched', 'wasm heap growth', 'peak JS heap', 'max frame during load', 'pan/zoom p95'],
@@ -254,6 +284,10 @@ function toMarkdown(results) {
         table(
             ['case', 'outcome', 'file size', 'probe time', 'bytes fetched', 'requests', 'HDUs'],
             probes
+        ),
+        table(
+            ['case', 'outcome', 'file size', 'tiles', 'read time', 'bytes fetched', 'bytes used', 'requests', 'fraction of file'],
+            tiles
         ),
     ]
         .filter(Boolean)

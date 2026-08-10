@@ -236,6 +236,61 @@ export async function runProbe({url, onLog = () => {}} = {}) {
     return result;
 }
 
+/**
+ * Read tiles over range requests and report what they cost.
+ *
+ * `plan` is a function of the file's index, returning `[level, x, y]` triples —
+ * so a case can ask for "the top of the pyramid" or "the tiles a zoomed-in view
+ * would need" without hard-coding dimensions.
+ */
+export async function runTiles({url, plan, budgetBytes, onLog = () => {}} = {}) {
+    onLog('init wasm');
+    await A.init;
+    const {probeFITS, readFITSTiles} = await import('../src/core/pkg');
+
+    const result = {url, startedAt: new Date().toISOString()};
+    try {
+        const probe = await probeFITS(url);
+        const image = probe.hdus.find((h) => h.axes.length >= 2);
+        if (!image) throw new Error('no image HDU');
+
+        const tiles = plan(image);
+        onLog(`reading ${tiles.length / 3} tile(s)`);
+
+        const t0 = nowMs();
+        result.read = await readFITSTiles(url, image.index, Uint32Array.from(tiles), budgetBytes);
+        result.readMs = +(nowMs() - t0).toFixed(1);
+    } catch (e) {
+        result.error = e && e.message ? e.message : String(e);
+    }
+
+    result.network = transferredFor(url);
+    result.finishedAt = new Date().toISOString();
+    return result;
+}
+
+export function formatTilesResult(r) {
+    if (r.error) return `ERROR ${r.error}`;
+
+    const t = r.read;
+    const lines = [
+        `image          ${t.width} x ${t.height}, ${t.levels} levels, source ${t.source}`,
+        `file size      ${(t.size / (1 << 20)).toFixed(1)} MiB`,
+        `read           ${r.readMs} ms for ${t.tiles.length} tile(s)`,
+        `network        ${(r.network.transferSize / (1 << 20)).toFixed(2)} MiB over ${r.network.requests} request(s)`,
+        `fraction       ${(t.fractionOfFile * 100).toFixed(4)}% of the file`,
+    ];
+    for (const tile of t.tiles) {
+        lines.push(
+            `  L${tile.level} ${tile.x},${tile.y}  ${tile.cols}x${tile.rows} samples  ` +
+                `step ${tile.stepX}x${tile.stepY}  ${(tile.bytesFetched / (1 << 20)).toFixed(2)} MiB  ` +
+                `${tile.requests} req  ${tile.totalMs.toFixed(1)} ms` +
+                (tile.rowThinning > 1 ? `  rows thinned ${tile.rowThinning}x` : '')
+        );
+    }
+    return lines.join('\n');
+}
+
 export function formatProbeResult(r) {
     if (r.error) return `ERROR ${r.error}`;
 

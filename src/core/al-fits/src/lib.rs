@@ -10,10 +10,13 @@
 //! ([`index::index`]), and read only the bytes some particular view actually
 //! needs.
 
+pub mod decode;
 pub mod error;
 pub mod header;
 pub mod index;
+pub mod reader;
 pub mod source;
+pub mod tile;
 pub mod wcs;
 
 pub use error::{Error, Result};

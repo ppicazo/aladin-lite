@@ -110,15 +110,29 @@ impl ImageReader {
         Ok(buffers)
     }
 
-    /// Read one tile.
+    /// Read one tile from this reader's own grid.
     pub async fn read_tile(&self, id: TileId, budget: u64) -> Result<(Tile, ReadStats)> {
+        let grid = self.grid.clone();
+        self.read_tile_on(&grid, id, budget).await
+    }
+
+    /// Read one tile addressed by some other tiling of the same image.
+    ///
+    /// The overview and the refinement tile the image differently — square for
+    /// the one, wide and short for the other — so the grid is a parameter
+    /// rather than a property of the reader.
+    pub async fn read_tile_on(
+        &self,
+        grid: &TileGrid,
+        id: TileId,
+        budget: u64,
+    ) -> Result<(Tile, ReadStats)> {
         let entry = self.entry();
-        let sampling = self
-            .grid
+        let sampling = grid
             .sampling(id, budget)
             .ok_or_else(|| Error::Format(format!("tile {:?} is outside the image", id)))?;
 
-        let plan = plan_reads(entry, &self.grid, &sampling);
+        let plan = plan_reads(entry, grid, &sampling);
         let buffers = self.fetch(&plan).await?;
         let tile = decode_tile(entry.bitpix, &sampling, &plan, &buffers, self.blank)?;
 
@@ -136,6 +150,11 @@ impl ImageReader {
     /// The sampling a tile would use, without reading anything.
     pub fn sampling(&self, id: TileId, budget: u64) -> Option<Sampling> {
         self.grid.sampling(id, budget)
+    }
+
+    /// A grid over this image with a different tile shape.
+    pub fn grid_with_tile_shape(&self, tile_w: u32, tile_h: u32) -> TileGrid {
+        self.grid.with_tile_shape(tile_w, tile_h)
     }
 
     /// Initial display cuts, taken from the top of the pyramid.

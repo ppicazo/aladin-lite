@@ -25,14 +25,14 @@ use al_core::texture::format::PixelType;
 ///
 /// Not always the tile size. The mesh maps a patch's UVs across the whole
 /// texture, so the texture has to represent the whole patch — and when the byte
-/// budget thins the rows, a full patch is `tile_size / thinning` rows tall
-/// rather than `tile_size`. Sizing the texture at `tile_size` regardless would
+/// budget thins the rows, a full patch is `tile_h / thinning` rows tall rather
+/// than `tile_h`. Sizing the texture at the tile height regardless would
 /// leave the samples occupying a fraction of it, and the image would render as
 /// a band with the rest blank.
-fn texture_size(tile_size: u32, sampling: &Sampling) -> (u32, u32) {
-    let patch_pixels = tile_size as u64 * sampling.step_x;
-    let rows = (patch_pixels / sampling.step_y).max(1) as u32;
-    (tile_size, rows)
+fn texture_size(grid: &TileGrid, level: u32, sampling: &Sampling) -> (u32, u32) {
+    let (_, span_y) = grid.span_at(level);
+    let rows = (span_y / sampling.step_y).max(1) as u32;
+    (grid.tile_w, rows)
 }
 
 /// Place a tile's samples at the start of a zeroed texture buffer.
@@ -104,7 +104,6 @@ pub async fn image_from_level(
 ) -> Result<(Image, u32), JsValue> {
     let level = initial_level(reader);
     let (nx, ny) = reader.grid.tiles_at(level);
-    let tile_size = reader.grid.tile_size;
 
     let entry = reader.entry();
     let wcs = entry
@@ -125,7 +124,7 @@ pub async fn image_from_level(
                 .ok_or_else(|| JsValue::from_str("tile lies outside the image"))?;
             let (tile, _) = reader.read_tile(id, tile_budget).await?;
 
-            let size = texture_size(tile_size, &sampling);
+            let size = texture_size(&reader.grid, level, &sampling);
             let texture = match tile.kind {
                 PixelKind::U8 => texture_of::<R8U>(gl, &tile, size)?,
                 PixelKind::I16 => texture_of::<R16I>(gl, &tile, size)?,
@@ -150,13 +149,19 @@ pub async fn image_from_level(
     // decoder, so they cost nothing extra and already describe the whole image.
     let cuts = al_fits::decode::percentile_cuts(&mut samples, 1.0, 99.0).unwrap_or(0.0..1.0);
 
-    // A patch spans TILE_SIZE texels, which at this level is TILE_SIZE * 2^L
-    // image pixels — and the mesh works in image pixels.
-    let patch_pixels = (tile_size as u64 * reader.grid.step_at(level)) as usize;
+    // A patch spans one tile's worth of texels, which at this level is that
+    // many image pixels times the step — and the mesh works in image pixels.
+    let (patch_x, patch_y) = reader.grid.span_at(level);
 
     let image = Image::from_patches(
         gl.clone(),
-        ImagePatches::new(pixel_type, textures, cuts, patch_pixels, patch_pixels),
+        ImagePatches::new(
+            pixel_type,
+            textures,
+            cuts,
+            patch_x as usize,
+            patch_y as usize,
+        ),
         wcs,
         reader.bscale,
         reader.bzero,
@@ -240,6 +245,14 @@ const MAX_TILES_IN_FLIGHT: usize = 8;
 /// side of it, so zooming in and back out does not re-read what was just shown.
 const MAX_CACHED_TILES: usize = 96;
 
+/// Tile shape used for refinement, in samples.
+///
+/// Requests scale with tile *height*, not area, so this buys the same pixels as
+/// a 512x512 tile for a quarter of the requests. The width stays inside the
+/// 2048 texture size WebGL2 guarantees everywhere.
+const REFINE_TILE_W: u32 = 2048;
+const REFINE_TILE_H: u32 = 128;
+
 /// The refinement drawn on top of an image's overview.
 ///
 /// The overview covers the whole image at the top of the pyramid and is always
@@ -247,6 +260,13 @@ const MAX_CACHED_TILES: usize = 96;
 /// simply is not drawn, and the coarser pixels underneath show through.
 pub struct Refine {
     reader: Rc<Reader>,
+    /// The image tiled for refinement: wide and short.
+    ///
+    /// A tile costs one range request per row, so on a wide image a square tile
+    /// is hundreds of requests for a screenful. This grid trades tile height
+    /// for request count while covering the same pixels. The overview keeps the
+    /// square grid, whose depth and top-level resolution depend on it.
+    grid: TileGrid,
     budget: u64,
     /// Level currently being requested, finest at 0.
     level: u32,
@@ -315,6 +335,16 @@ fn visible_image_rect(
                 continue;
             }
 
+            // Samples that miss the image are dropped, not clamped. A sky
+            // projection happily maps most of the sky onto an image plane, so a
+            // sample pointing anywhere near the field comes back with
+            // coordinates outside the image rather than no answer; folding
+            // those to the edges made every rectangle the whole image, at every
+            // zoom, and refinement never had anything smaller to ask for.
+            if x < 0.0 || y < 0.0 || x > width || y > height {
+                continue;
+            }
+
             found = true;
             x0 = x0.min(x);
             y0 = y0.min(y);
@@ -372,19 +402,23 @@ const MAX_REQUESTS_PER_VIEW: usize = 512;
 /// exact except at the image's edges, where it is an over-estimate.
 fn requests_for_view(
     reader: &Reader,
+    grid: &TileGrid,
     level: u32,
     rect: (f64, f64, f64, f64),
     budget: u64,
 ) -> Option<usize> {
-    let grid = &reader.grid;
-    let patch = grid.step_at(level) * grid.tile_size as u64;
+    let (span_x, span_y) = grid.span_at(level);
 
     let (x0, y0, x1, y1) = rect;
-    let tiles_x = (x1.ceil() as u64).saturating_sub(1) / patch - (x0 as u64) / patch + 1;
-    let tiles_y = (y1.ceil() as u64).saturating_sub(1) / patch - (y0 as u64) / patch + 1;
+    let tiles_x = (x1.ceil() as u64).saturating_sub(1) / span_x - (x0 as u64) / span_x + 1;
+    let tiles_y = (y1.ceil() as u64).saturating_sub(1) / span_y - (y0 as u64) / span_y + 1;
 
-    let id = TileId::new(level, ((x0 as u64) / patch) as u32, ((y0 as u64) / patch) as u32);
-    let sampling = reader.sampling(id, budget)?;
+    let id = TileId::new(
+        level,
+        ((x0 as u64) / span_x) as u32,
+        ((y0 as u64) / span_y) as u32,
+    );
+    let sampling = grid.sampling(id, budget)?;
     let plan = al_fits::tile::plan_reads(reader.entry(), grid, &sampling);
 
     Some(plan.requests().saturating_mul((tiles_x * tiles_y) as usize))
@@ -393,14 +427,15 @@ fn requests_for_view(
 /// The finest level the view can actually afford to fetch.
 fn affordable_level(
     reader: &Reader,
+    grid: &TileGrid,
     wanted: u32,
     rect: (f64, f64, f64, f64),
     budget: u64,
 ) -> u32 {
-    let coarsest = reader.grid.level_count() - 1;
+    let coarsest = grid.level_count() - 1;
 
     for level in wanted..=coarsest {
-        match requests_for_view(reader, level, rect, budget) {
+        match requests_for_view(reader, grid, level, rect, budget) {
             Some(requests) if requests <= MAX_REQUESTS_PER_VIEW => return level,
             _ => continue,
         }
@@ -411,6 +446,7 @@ fn affordable_level(
 
 impl Refine {
     pub fn new(gl: &WebGlContext, reader: Rc<Reader>, budget: u64) -> Result<Self, JsValue> {
+        let grid = reader.grid_with_tile_shape(REFINE_TILE_W, REFINE_TILE_H);
         let (ready_send, ready_recv) = async_channel::unbounded();
 
         let pos: Vec<f32> = vec![];
@@ -439,6 +475,7 @@ impl Refine {
 
         Ok(Self {
             reader,
+            grid,
             budget,
             level: u32::MAX,
             tiles: HashMap::new(),
@@ -485,19 +522,20 @@ impl Refine {
             return;
         }
 
-        let Some(sampling) = self.reader.sampling(id, self.budget) else {
+        let Some(sampling) = self.grid.sampling(id, self.budget) else {
             return;
         };
-        let size = texture_size(self.reader.grid.tile_size, &sampling);
+        let size = texture_size(&self.grid, id.level, &sampling);
 
         self.pending.insert(id);
 
         let reader = self.reader.clone();
+        let grid = self.grid.clone();
         let send = self.ready_send.clone();
         let budget = self.budget;
 
         wasm_bindgen_futures::spawn_local(async move {
-            match reader.read_tile(id, budget).await {
+            match reader.read_tile_on(&grid, id, budget).await {
                 Ok((tile, _)) => {
                     let _ = send.send(TileReady { id, tile, size }).await;
                 }
@@ -552,11 +590,10 @@ impl Refine {
             return Ok(redraw);
         };
 
-        let grid = self.reader.grid.clone();
+        let grid = self.grid.clone();
         let wanted = level_for(&grid, camera, rect);
-        let level = affordable_level(&self.reader, wanted, rect, self.budget);
-        let step = grid.step_at(level);
-        let patch = step * grid.tile_size as u64;
+        let level = affordable_level(&self.reader, &grid, wanted, rect, self.budget);
+        let (patch_x, patch_y) = grid.span_at(level);
 
         // Nothing to refine: the overview already draws this level.
         if level >= grid.level_count() - 1 {
@@ -566,10 +603,10 @@ impl Refine {
         }
 
         let (x0, y0, x1, y1) = rect;
-        let (tx0, ty0) = ((x0 as u64) / patch, (y0 as u64) / patch);
+        let (tx0, ty0) = ((x0 as u64) / patch_x, (y0 as u64) / patch_y);
         let (tx1, ty1) = (
-            ((x1.ceil() as u64).saturating_sub(1)) / patch,
-            ((y1.ceil() as u64).saturating_sub(1)) / patch,
+            ((x1.ceil() as u64).saturating_sub(1)) / patch_x,
+            ((y1.ceil() as u64).saturating_sub(1)) / patch_y,
         );
 
         let (nx, ny) = ((tx1 - tx0 + 1) as usize, (ty1 - ty0 + 1) as usize);
@@ -613,19 +650,19 @@ impl Refine {
         // The mesh spans whole patches so that its patch grid lines up with the
         // tile grid: `grid::vertices` breaks its patches on multiples of the
         // patch size, and the textures are addressed by that same division.
-        let mesh_x0 = (tx0 * patch) as f64;
-        let mesh_y0 = (ty0 * patch) as f64;
+        let mesh_x0 = (tx0 * patch_x) as f64;
+        let mesh_y0 = (ty0 * patch_y) as f64;
         let dim = wcs.img_dimensions();
-        let mesh_x1 = (((tx1 + 1) * patch) as f64).min(dim[0] as f64);
-        let mesh_y1 = (((ty1 + 1) * patch) as f64).min(dim[1] as f64);
+        let mesh_x1 = (((tx1 + 1) * patch_x) as f64).min(dim[0] as f64);
+        let mesh_y1 = (((ty1 + 1) * patch_y) as f64).min(dim[1] as f64);
 
         let num_vertices = ((camera.get_aperture().to_degrees() / 180.0) * 15.0).ceil() as u64;
 
         let (pos, uv, indices, num_indices) = super::grid::vertices(
             &(mesh_x0, mesh_y0),
             &(mesh_x1, mesh_y1),
-            patch,
-            patch,
+            patch_x,
+            patch_y,
             num_vertices.max(1),
             camera,
             wcs,

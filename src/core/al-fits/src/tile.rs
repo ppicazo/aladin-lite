@@ -82,7 +82,15 @@ pub struct TileGrid {
     pub width: u64,
     pub height: u64,
     pub bytes_per_pixel: u64,
-    pub tile_size: u32,
+    /// Samples across a tile.
+    pub tile_w: u32,
+    /// Samples down a tile.
+    ///
+    /// This is what a tile costs: a tile is read as one span per row, so its
+    /// height *is* its request count. Short wide tiles buy the same pixels for
+    /// a fraction of the requests, which on a wide image is the difference
+    /// between a view arriving and not.
+    pub tile_h: u32,
 }
 
 impl TileGrid {
@@ -91,7 +99,22 @@ impl TileGrid {
             width,
             height,
             bytes_per_pixel,
-            tile_size: TILE_SIZE,
+            tile_w: TILE_SIZE,
+            tile_h: TILE_SIZE,
+        }
+    }
+
+    /// The same image tiled differently.
+    ///
+    /// One image can be addressed by several grids at once — a square one for
+    /// the overview, whose depth and top-level resolution depend on the tile
+    /// being square, and a wide short one for refinement, where request count
+    /// is what matters.
+    pub fn with_tile_shape(&self, tile_w: u32, tile_h: u32) -> Self {
+        Self {
+            tile_w: tile_w.max(1),
+            tile_h: tile_h.max(1),
+            ..self.clone()
         }
     }
 
@@ -107,23 +130,28 @@ impl TileGrid {
 
     /// Number of levels, the last of which holds the whole image in one tile.
     pub fn level_count(&self) -> u32 {
-        let longest = self.width.max(self.height).max(1);
-        let tile = self.tile_size as u64;
         let mut levels = 1;
-        let mut covered = tile;
-        while covered < longest {
-            covered = covered.saturating_mul(2);
+        let (mut covered_x, mut covered_y) = (self.tile_w as u64, self.tile_h as u64);
+        while covered_x < self.width.max(1) || covered_y < self.height.max(1) {
+            covered_x = covered_x.saturating_mul(2);
+            covered_y = covered_y.saturating_mul(2);
             levels += 1;
         }
         levels
     }
 
+    /// Image pixels one tile spans at `level`, as `(width, height)`.
+    pub fn span_at(&self, level: u32) -> (u64, u64) {
+        let step = self.step_at(level);
+        (step * self.tile_w as u64, step * self.tile_h as u64)
+    }
+
     /// Grid dimensions at `level`, as `(columns, rows)`.
     pub fn tiles_at(&self, level: u32) -> (u32, u32) {
-        let span = self.step_at(level) * self.tile_size as u64;
+        let (span_x, span_y) = self.span_at(level);
         (
-            self.width.div_ceil(span).max(1) as u32,
-            self.height.div_ceil(span).max(1) as u32,
+            self.width.div_ceil(span_x).max(1) as u32,
+            self.height.div_ceil(span_y).max(1) as u32,
         )
     }
 
@@ -157,21 +185,23 @@ impl TileGrid {
     /// `u64::MAX`; [`Sampling::row_thinning`] reports what happened.
     pub fn sampling(&self, tile: TileId, max_bytes: u64) -> Option<Sampling> {
         let step = self.step_at(tile.level);
-        let span = step * self.tile_size as u64;
+        let (span_x, span_y) = self.span_at(tile.level);
 
-        let origin_x = tile.x as u64 * span;
-        let origin_y = tile.y as u64 * span;
+        let origin_x = tile.x as u64 * span_x;
+        let origin_y = tile.y as u64 * span_y;
         if origin_x >= self.width || origin_y >= self.height {
             return None;
         }
 
-        let cols = (self.width - origin_x).div_ceil(step).min(self.tile_size as u64) as u32;
+        let cols = (self.width - origin_x).div_ceil(step).min(self.tile_w as u64) as u32;
 
         let mut step_y = step;
         loop {
+            // The row count is capped by the tile's height in *samples*, and
+            // the rows a thinned tile keeps still span the whole tile.
             let rows = (self.height - origin_y)
                 .div_ceil(step_y)
-                .min(self.tile_size as u64) as u32;
+                .min((span_y / step_y).max(1)) as u32;
 
             let bytes = rows as u64 * self.row_span_bytes(origin_x, cols, step);
 
@@ -412,6 +442,62 @@ mod tests {
 
         assert_eq!(plan.requests(), 512);
         assert_eq!(plan.bytes(), plan.useful_bytes());
+    }
+
+    #[test]
+    fn a_wide_short_tile_costs_far_fewer_requests() {
+        // The whole point of non-square tiles: a tile is one request per row,
+        // so the same pixels cost proportionally fewer requests when the tile
+        // is short. 65536 wide means nothing coalesces either way.
+        let hdu = hdu(65536, 65536, -32, 2880);
+
+        let square = TileGrid::from_hdu(&hdu).unwrap();
+        let sampling = square.sampling(TileId::new(0, 0, 0), u64::MAX).unwrap();
+        let square_plan = plan_reads(&hdu, &square, &sampling);
+
+        let wide = square.with_tile_shape(2048, 128);
+        let sampling = wide.sampling(TileId::new(0, 0, 0), u64::MAX).unwrap();
+        let wide_plan = plan_reads(&hdu, &wide, &sampling);
+
+        assert_eq!(square_plan.requests(), 512);
+        assert_eq!(wide_plan.requests(), 128);
+        // And for that it buys the same number of samples.
+        assert_eq!(square_plan.useful_bytes(), 512 * 512 * 4);
+        assert_eq!(wide_plan.useful_bytes(), 2048 * 128 * 4);
+    }
+
+    #[test]
+    fn a_wide_grid_still_covers_every_pixel() {
+        let grid = TileGrid::new(5000, 3000, 4).with_tile_shape(2048, 128);
+        let (nx, ny) = grid.tiles_at(0);
+
+        let mut samples = 0u64;
+        for ty in 0..ny {
+            for tx in 0..nx {
+                let s = grid.sampling(TileId::new(0, tx, ty), u64::MAX).unwrap();
+                samples += s.cols as u64 * s.rows as u64;
+            }
+        }
+        assert_eq!(samples, 5000 * 3000);
+    }
+
+    #[test]
+    fn a_non_square_pyramid_still_ends_in_one_tile() {
+        let grid = TileGrid::new(32768, 32768, 4).with_tile_shape(2048, 128);
+        let top = grid.level_count() - 1;
+        assert_eq!(grid.tiles_at(top), (1, 1));
+
+        // The shorter axis is what sets the depth, so this pyramid is deeper
+        // than the square one over the same image.
+        assert!(grid.level_count() > TileGrid::new(32768, 32768, 4).level_count());
+    }
+
+    #[test]
+    fn the_square_default_is_unchanged() {
+        let grid = TileGrid::new(4096, 4096, 4);
+        assert_eq!((grid.tile_w, grid.tile_h), (TILE_SIZE, TILE_SIZE));
+        assert_eq!(grid.level_count(), 4);
+        assert_eq!(grid.tiles_at(0), (8, 8));
     }
 
     #[test]

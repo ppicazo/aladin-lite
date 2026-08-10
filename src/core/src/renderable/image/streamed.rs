@@ -282,6 +282,8 @@ pub struct Refine {
     num_indices: Vec<u32>,
     /// The tile each patch of the current mesh draws, in patch order.
     patch_tiles: Vec<TileId>,
+    /// What the current mesh was built for, so an unchanged view can skip it.
+    built_for: Option<((u64, u64, u64, u64), u32)>,
 }
 
 /// The image-pixel rectangle the camera can currently see, as
@@ -488,6 +490,7 @@ impl Refine {
             indices,
             num_indices: vec![],
             patch_tiles: vec![],
+            built_for: None,
         })
     }
 
@@ -587,6 +590,7 @@ impl Refine {
             // Off screen: keep the textures, drop the mesh.
             self.num_indices.clear();
             self.patch_tiles.clear();
+            self.built_for = None;
             return Ok(redraw);
         };
 
@@ -599,6 +603,7 @@ impl Refine {
         if level >= grid.level_count() - 1 {
             self.num_indices.clear();
             self.patch_tiles.clear();
+            self.built_for = None;
             return Ok(redraw);
         }
 
@@ -647,6 +652,15 @@ impl Refine {
         }
         self.evict(&wanted);
 
+        // Rebuilding the mesh means re-projecting every vertex and re-uploading
+        // three buffers. Doing that on a frame where neither the view nor the
+        // level has moved is pure contention with the tile reads still in
+        // flight, which share this thread.
+        let signature = ((tx0, ty0, tx1, ty1), level);
+        if self.built_for == Some(signature) && !self.num_indices.is_empty() {
+            return Ok(redraw);
+        }
+
         // The mesh spans whole patches so that its patch grid lines up with the
         // tile grid: `grid::vertices` breaks its patches on multiples of the
         // patch size, and the textures are addressed by that same division.
@@ -674,9 +688,12 @@ impl Refine {
         // disagree about the grid and binding textures by position would draw
         // the wrong pixels. Drawing nothing is the safe answer; the overview
         // still shows.
+        self.built_for = Some(signature);
+
         if num_indices.len() != patch_tiles.len() {
             self.num_indices.clear();
             self.patch_tiles.clear();
+            self.built_for = None;
             return Ok(redraw);
         }
 

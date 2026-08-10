@@ -351,6 +351,64 @@ fn level_for(grid: &TileGrid, camera: &CameraViewPort, rect: (f64, f64, f64, f64
     grid.level_for_scale((x1 - x0) / screen_px)
 }
 
+/// Range requests a view is allowed to spend on one refinement level.
+///
+/// A tile costs one request per row it samples unless those rows are close
+/// enough together to coalesce, so on a wide image the cost of a viewport grows
+/// sharply as the level gets finer — on a 32768-wide image a screenful at full
+/// resolution is thousands of requests. Past a few hundred, against a browser
+/// holding six connections to an origin, nothing lands in a useful time and the
+/// view simply never improves.
+///
+/// So the level is chosen by what it costs to fetch, not only by what the zoom
+/// asks for. Falling back to a coarser level shows *something* sharper than the
+/// overview, which beats asking for perfection and rendering nothing.
+const MAX_REQUESTS_PER_VIEW: usize = 512;
+
+/// Requests the viewport would need at `level`.
+///
+/// Counts one representative tile's plan and multiplies by the tiles the view
+/// covers; every tile at a level has the same row count, so the estimate is
+/// exact except at the image's edges, where it is an over-estimate.
+fn requests_for_view(
+    reader: &Reader,
+    level: u32,
+    rect: (f64, f64, f64, f64),
+    budget: u64,
+) -> Option<usize> {
+    let grid = &reader.grid;
+    let patch = grid.step_at(level) * grid.tile_size as u64;
+
+    let (x0, y0, x1, y1) = rect;
+    let tiles_x = (x1.ceil() as u64).saturating_sub(1) / patch - (x0 as u64) / patch + 1;
+    let tiles_y = (y1.ceil() as u64).saturating_sub(1) / patch - (y0 as u64) / patch + 1;
+
+    let id = TileId::new(level, ((x0 as u64) / patch) as u32, ((y0 as u64) / patch) as u32);
+    let sampling = reader.sampling(id, budget)?;
+    let plan = al_fits::tile::plan_reads(reader.entry(), grid, &sampling);
+
+    Some(plan.requests().saturating_mul((tiles_x * tiles_y) as usize))
+}
+
+/// The finest level the view can actually afford to fetch.
+fn affordable_level(
+    reader: &Reader,
+    wanted: u32,
+    rect: (f64, f64, f64, f64),
+    budget: u64,
+) -> u32 {
+    let coarsest = reader.grid.level_count() - 1;
+
+    for level in wanted..=coarsest {
+        match requests_for_view(reader, level, rect, budget) {
+            Some(requests) if requests <= MAX_REQUESTS_PER_VIEW => return level,
+            _ => continue,
+        }
+    }
+
+    coarsest
+}
+
 impl Refine {
     pub fn new(gl: &WebGlContext, reader: Rc<Reader>, budget: u64) -> Result<Self, JsValue> {
         let (ready_send, ready_recv) = async_channel::unbounded();
@@ -495,7 +553,8 @@ impl Refine {
         };
 
         let grid = self.reader.grid.clone();
-        let level = level_for(&grid, camera, rect);
+        let wanted = level_for(&grid, camera, rect);
+        let level = affordable_level(&self.reader, wanted, rect, self.budget);
         let step = grid.step_at(level);
         let patch = step * grid.tile_size as u64;
 
@@ -530,7 +589,23 @@ impl Refine {
             redraw = true;
         }
 
-        for id in &patch_tiles {
+        // Nearest the middle of the view first: the in-flight limit means only
+        // some of these start now, and the centre is what the user is looking
+        // at.
+        let centre = (
+            (tx0 + tx1) as f64 / 2.0,
+            (ty0 + ty1) as f64 / 2.0,
+        );
+        let mut by_distance: Vec<TileId> = patch_tiles.clone();
+        by_distance.sort_by(|a, b| {
+            let d = |t: &TileId| {
+                let dx = t.x as f64 - centre.0;
+                let dy = t.y as f64 - centre.1;
+                dx * dx + dy * dy
+            };
+            d(a).total_cmp(&d(b))
+        });
+        for id in &by_distance {
             self.request(*id);
         }
         self.evict(&wanted);

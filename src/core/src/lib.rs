@@ -100,6 +100,7 @@ use crate::math::angle::ToAngle;
 
 mod app;
 pub mod async_task;
+pub mod probe;
 mod camera;
 mod shaders;
 

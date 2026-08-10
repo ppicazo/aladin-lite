@@ -81,6 +81,30 @@ full-resolution copies.
 directly: 139 ms at 64 MB, 319 ms at 512 MB, 764 ms at 1 GB. Decode and upload
 happen inline in the call from JS, so the UI is frozen for that entire window.
 
+## Phase 1 — header-only probe over HTTP ranges
+
+`probeFITS(url)` indexes a file's structure — every HDU, its dimensions, its
+position on the sky — by reading headers and stepping over data units
+arithmetically. The bytes in between are never requested.
+
+| case | outcome | file size | probe time | bytes fetched | requests | HDUs |
+|---|---|---|---|---|---|---|
+| probe-64mb | ok | 64 MiB | 28.7 ms | 65836 B | 1 | 1 |
+| probe-512mb | ok | 512 MiB | 19 ms | 65836 B | 1 | 1 |
+| probe-4gb | ok | 4096 MiB | 16.1 ms | 65836 B | 1 | 1 |
+
+Cost is flat in file size: one request, 64 KiB, regardless. The 4 GB file that
+the loading path cannot open at all — after downloading all 4096 MiB of it — is
+described completely in 16 ms from 0.0015% of its bytes, WCS included. The
+64 KiB is simply the opening probe window; the primary header itself is 2880 B.
+
+Two properties make this work and both carry into the tiling phase: the total
+file size arrives in the `Content-Range` of the same request that returns the
+first header, so opening a file costs one round trip rather than a `HEAD`
+followed by a `GET`; and a server that ignores `Range` is detected from the 200
+status and its body reused as an in-memory source, so a non-cooperating origin
+is no worse than today's behaviour rather than a second full download.
+
 ## Targets for the phases that follow
 
 | | baseline | target |

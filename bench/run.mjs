@@ -31,6 +31,12 @@ const CASES = {
     '64mb-x4': {file: `${DATA}/synth-64mb.fits`, count: 4, timeoutMs: 300_000},
     '64mb-x10': {file: `${DATA}/synth-64mb.fits`, count: 10, timeoutMs: 600_000},
     '512mb-x4': {file: `${DATA}/synth-512mb.fits`, count: 4, timeoutMs: 600_000},
+
+    // Header-only probes. These read structure, not pixels, so the interesting
+    // column is bytes fetched rather than time.
+    'probe-64mb': {page: 'probe', file: `${DATA}/synth-64mb.fits`, timeoutMs: 60_000},
+    'probe-512mb': {page: 'probe', file: `${DATA}/synth-512mb.fits`, timeoutMs: 60_000},
+    'probe-4gb': {page: 'probe', file: `${DATA}/synth-4gb.fits`, timeoutMs: 60_000},
 };
 
 // The default DSS2 base layer needs the internet. When it is unreachable the
@@ -43,19 +49,54 @@ function arg(name, fallback) {
     return i === -1 ? fallback : process.argv[i + 1];
 }
 
+const CWD = new URL('..', import.meta.url).pathname;
+
+/**
+ * Spawn a server in its own process group.
+ *
+ * Killing the group rather than the process matters: `npx` does not forward
+ * signals to the tool it launches, so a plain `proc.kill()` leaves Vite running
+ * and holding the port, which then wedges the next run.
+ */
+function spawnServer(command, args) {
+    return spawn(command, args, {cwd: CWD, stdio: ['ignore', 'pipe', 'pipe'], detached: true});
+}
+
+function stopServer(proc) {
+    if (!proc || proc.killed || proc.pid == null) return;
+    try {
+        process.kill(-proc.pid, 'SIGTERM');
+    } catch {
+        proc.kill('SIGTERM');
+    }
+}
+
 function startDataServer() {
-    const proc = spawn('node', ['bench/serve.mjs', '--port', String(DATA_PORT)], {
-        cwd: new URL('..', import.meta.url).pathname,
-        stdio: ['ignore', 'inherit', 'inherit'],
-    });
+    const proc = spawnServer('node', ['bench/serve.mjs', '--port', String(DATA_PORT)]);
+    proc.stderr.pipe(process.stderr);
     return proc;
 }
 
+/**
+ * Fail early if something is already listening.
+ *
+ * A leftover server from an interrupted run will happily answer requests, and
+ * the suite then measures whatever that stale process is serving — or hangs
+ * against it. Better to stop and say so.
+ */
+async function requirePortFree(port) {
+    try {
+        await fetch(`http://localhost:${port}/`, {signal: AbortSignal.timeout(2000)});
+    } catch {
+        return; // nothing there, which is what we want
+    }
+    throw new Error(
+        `port ${port} is already in use — a previous bench run may still be alive (pkill -f bench/)`
+    );
+}
+
 async function startVite() {
-    const proc = spawn('npx', ['vite', '--port', String(PORT), '--strictPort'], {
-        cwd: new URL('..', import.meta.url).pathname,
-        stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    const proc = spawnServer('node_modules/.bin/vite', ['--port', String(PORT), '--strictPort']);
 
     await new Promise((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error('vite did not start in 60s')), 60_000);
@@ -110,7 +151,10 @@ async function runCase(browser, name, spec) {
     page.on('pageerror', (e) => note(`pageerror: ${String(e)}`));
     const crashed = new Promise((resolve) => page.on('crash', () => resolve('page crashed (out of memory)')));
 
-    const url = `${BASE}/examples/al-bench-fits.html?file=${encodeURIComponent(spec.file)}&count=${spec.count}&pan=3000`;
+    const url =
+        spec.page === 'probe'
+            ? `${BASE}/examples/al-bench-probe.html?file=${encodeURIComponent(spec.file)}`
+            : `${BASE}/examples/al-bench-fits.html?file=${encodeURIComponent(spec.file)}&count=${spec.count}&pan=3000`;
     process.stderr.write(`\n=== ${name} ===\n${url}\n`);
 
     const t0 = Date.now();
@@ -164,24 +208,56 @@ function mib(b) {
     return b == null ? 'n/a' : `${(b / (1 << 20)).toFixed(0)} MiB`;
 }
 
+function table(head, rows) {
+    if (!rows.length) return '';
+    const sep = head.map(() => '---');
+    return [
+        `| ${head.join(' | ')} |`,
+        `|${sep.join('|')}|`,
+        ...rows.map((r) => `| ${r.join(' | ')} |`),
+    ].join('\n');
+}
+
 function toMarkdown(results) {
-    const head =
-        '| case | outcome | load | bytes fetched | wasm heap growth | peak JS heap | max frame during load | pan/zoom p95 |\n' +
-        '|---|---|---|---|---|---|---|---|';
-    const rows = results.map((r) => {
-        const outcome = r.error ? `**FAIL** — ${r.error}` : 'ok';
-        return [
+    const outcome = (r) => (r.error ? `**FAIL** — ${r.error}` : 'ok');
+
+    const loads = results
+        .filter((r) => !r.probe && !CASES[r.case]?.page)
+        .map((r) => [
             r.case,
-            outcome,
+            outcome(r),
             r.loadMs != null ? `${(r.loadMs / 1000).toFixed(1)} s` : 'n/a',
             r.network ? mib(r.network.transferSize) : 'n/a',
             mib(r.wasmHeapGrowthBytes),
             mib(r.peakJsHeapBytes),
             r.duringLoad && r.duringLoad.maxFrameMs != null ? `${r.duringLoad.maxFrameMs} ms` : 'n/a',
             r.interaction ? `${r.interaction.p95FrameMs} ms` : 'n/a',
-        ].join(' | ');
-    });
-    return `${head}\n| ${rows.join(' |\n| ')} |`;
+        ]);
+
+    const probes = results
+        .filter((r) => CASES[r.case]?.page === 'probe')
+        .map((r) => [
+            r.case,
+            outcome(r),
+            r.probe ? `${(r.probe.size / (1 << 20)).toFixed(0)} MiB` : 'n/a',
+            r.probeMs != null ? `${r.probeMs} ms` : 'n/a',
+            r.network ? `${r.network.transferSize} B` : 'n/a',
+            r.network ? String(r.network.requests) : 'n/a',
+            r.probe ? String(r.probe.hdus.length) : 'n/a',
+        ]);
+
+    return [
+        table(
+            ['case', 'outcome', 'load', 'bytes fetched', 'wasm heap growth', 'peak JS heap', 'max frame during load', 'pan/zoom p95'],
+            loads
+        ),
+        table(
+            ['case', 'outcome', 'file size', 'probe time', 'bytes fetched', 'requests', 'HDUs'],
+            probes
+        ),
+    ]
+        .filter(Boolean)
+        .join('\n\n');
 }
 
 const wanted = (arg('cases', Object.keys(CASES).join(','))).split(',').filter(Boolean);
@@ -190,6 +266,9 @@ if (unknown.length) {
     console.error(`unknown case(s): ${unknown.join(', ')}\nknown: ${Object.keys(CASES).join(', ')}`);
     process.exit(2);
 }
+
+await requirePortFree(PORT);
+await requirePortFree(DATA_PORT);
 
 const dataServer = startDataServer();
 const vite = await startVite();
@@ -218,8 +297,8 @@ try {
         process.stderr.write(`${r.error ? 'FAIL' : 'ok'}  ${r.case}  ${(r.wallMs / 1000).toFixed(1)}s\n`);
     }
 } finally {
-    vite.kill('SIGTERM');
-    dataServer.kill('SIGTERM');
+    stopServer(vite);
+    stopServer(dataServer);
 }
 
 await mkdir(new URL('results/', import.meta.url), {recursive: true});

@@ -39,6 +39,19 @@ A case that fails — out of memory, allocation failure, timeout — is recorded
 with its failure mode rather than aborting the run. At large sizes that failure
 *is* the measurement.
 
+Cases named `probe-*` measure the header-only path instead: they call
+`probeFITS(url)` and report bytes fetched and request count, which should stay
+flat as file size grows.
+
+## Debugging a case
+
+`bench/debug-probe.mjs` loads the probe page once with every console message,
+page error and failed request echoed to the terminal:
+
+```sh
+node bench/debug-probe.mjs http://localhost:5200/synth-4gb.fits
+```
+
 ## Interactive
 
 Open the page directly to poke at a single file:

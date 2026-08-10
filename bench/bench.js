@@ -209,6 +209,57 @@ export async function runBench({
     return result;
 }
 
+/**
+ * Index a FITS file's structure without loading its pixels.
+ *
+ * The measurement that matters here is `network.transferSize`: on a server that
+ * honours Range this should stay in the kilobytes no matter how large the file
+ * is, where the loading path in `runBench` always transfers 100% of it.
+ */
+export async function runProbe({url, onLog = () => {}} = {}) {
+    onLog('init wasm');
+    await A.init;
+    const {probeFITS} = await import('../src/core/pkg');
+
+    const result = {url, startedAt: new Date().toISOString()};
+    const t0 = nowMs();
+    try {
+        result.probe = await probeFITS(url);
+        result.probeMs = +(nowMs() - t0).toFixed(1);
+    } catch (e) {
+        result.probeMs = +(nowMs() - t0).toFixed(1);
+        result.error = e && e.message ? e.message : String(e);
+    }
+
+    result.network = transferredFor(url);
+    result.finishedAt = new Date().toISOString();
+    return result;
+}
+
+export function formatProbeResult(r) {
+    if (r.error) return `ERROR ${r.error}`;
+
+    const p = r.probe;
+    const lines = [
+        `url            ${p.url}`,
+        `source         ${p.source}`,
+        `file size      ${(p.size / (1 << 20)).toFixed(1)} MiB`,
+        `bytes read     ${p.bytesRead} B (wasm) / ${r.network.transferSize} B (network, ${r.network.requests} request(s))`,
+        `probe time     ${r.probeMs} ms`,
+        `hdus           ${p.hdus.length}`,
+    ];
+    for (const h of p.hdus) {
+        const where = h.position
+            ? `ra=${h.position.ra.toFixed(4)} dec=${h.position.dec.toFixed(4)} fov=${h.position.fov.toFixed(4)} deg`
+            : 'no wcs';
+        lines.push(
+            `  #${h.index} ${h.kind} bitpix=${h.bitpix} axes=[${h.axes.join('x')}] ` +
+                `data=${h.dataLength} B @ ${h.dataOffset}  ${where}`
+        );
+    }
+    return lines.join('\n');
+}
+
 export function formatResult(r) {
     const mib = (b) => (b == null ? 'n/a' : `${(b / (1 << 20)).toFixed(1)} MiB`);
     const lines = [
